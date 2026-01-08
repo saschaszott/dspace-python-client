@@ -193,7 +193,27 @@ if incompatible:
 ```bash
 git clone https://github.com/yourusername/dspace-python-client.git
 cd dspace-python-client
+
+# Create and activate virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
 pip install -e .
+```
+
+### Running Examples
+
+When running examples, make sure to use the venv's Python:
+
+```bash
+# Option 1: Activate venv first
+source venv/bin/activate
+python examples/recent_items_with_submitters.py
+
+# Option 2: Use venv Python directly
+./venv/bin/python examples/recent_items_with_submitters.py
 ```
 
 ### Running Tests

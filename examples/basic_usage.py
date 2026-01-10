@@ -2,44 +2,25 @@
 
 import asyncio
 import getpass
-from typing import Union, List
 from rich.console import Console
 from dspace_client import create_validated_client, ServerVersionMismatchError
 
+# DEVELOPER DECLARES: This script is compatible with DSpace 8.0 and 9.0
+# Users can only run this script against DSpace servers running these versions
+TARGET_VERSIONS = ["8.0", "9.0"]
+
 console = Console()
-
-
-def parse_target_versions(input_str: str) -> Union[str, List[str]]:
-    """Parse target versions from user input."""
-    input_str = input_str.strip()
-    if not input_str:
-        return "bleeding-edge"
-    
-    # Handle comma-separated list
-    versions = [v.strip() for v in input_str.split(",") if v.strip()]
-    if len(versions) == 1:
-        return versions[0]
-    return versions
 
 
 async def main():
     """Demonstrate basic DSpace client usage."""
     
-    # Prompt for target versions first
-    target_input = console.input(
-        "[bold cyan]Target DSpace versions[/bold cyan] [dim](comma-separated, e.g., 8.0,9.0 or press Enter for bleeding-edge):[/dim] "
-    ).strip()
-    target_versions = parse_target_versions(target_input)
+    # Show what versions this script supports
+    supported_str = ", ".join(TARGET_VERSIONS)
     
-    # Show supported versions in URL prompt
-    if isinstance(target_versions, list):
-        supported_str = ", ".join(target_versions)
-    else:
-        supported_str = target_versions
-    
-    # Interactive prompt for base URL with supported versions shown
+    # Prompt user for DSpace server URL
     base_url = console.input(
-        f"[bold cyan]DSpace base URL[/bold cyan] [dim](supported versions: {supported_str}, press Enter for https://demo.dspace.org):[/dim] "
+        f"[bold cyan]DSpace base URL[/bold cyan] [dim](this script supports versions: {supported_str}, press Enter for https://demo.dspace.org):[/dim] "
     ).strip()
     
     # Default to demo.dspace.org if user just pressed Enter
@@ -60,17 +41,19 @@ async def main():
         password = getpass.getpass("Admin password: ")
     
     # Authenticate and create client with automatic version validation
+    # The server version will be checked against TARGET_VERSIONS declared above
     try:
         auth, client = await create_validated_client(
             base_url=base_url,
             username=username,
             password=password,
-            target_versions=target_versions,
+            target_versions=TARGET_VERSIONS,  # Uses developer-declared versions
         )
         # Version validation happens automatically - if major version mismatch,
         # ServerVersionMismatchError would have been raised
     except ServerVersionMismatchError as e:
         console.print(f"[red]Version mismatch:[/red] {e}")
+        console.print(f"[yellow]This script only works with DSpace versions: {supported_str}[/yellow]")
         return
     # On first run, this will fetch REST API docs from GitHub
     # Subsequent runs use cached docs

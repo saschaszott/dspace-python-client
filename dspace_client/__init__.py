@@ -12,21 +12,31 @@ Key Features:
 - Batch operations with adaptive concurrency control
 
 Example:
+    # DEVELOPER DECLARES: This script is compatible with DSpace 8.0 and 9.0
+    TARGET_VERSIONS = ["8.0", "9.0"]
+    
     from dspace_client import create_validated_client, ServerVersionMismatchError
+    
+    # User provides URL at runtime
+    base_url = input("DSpace base URL: ")
+    username = input("Username: ")
+    password = input("Password: ")
     
     try:
         # Authenticate and create client with automatic version validation
+        # Server version is checked against TARGET_VERSIONS
         auth, client = await create_validated_client(
-            base_url="https://demo.dspace.org",
-            username="user",
-            password="pass",
-            target_versions=["8.0", "9.0"]  # Server version will be validated
+            base_url=base_url,
+            username=username,
+            password=password,
+            target_versions=TARGET_VERSIONS  # Developer-declared versions
         )
         
         # Create a community (validated against target versions)
         community = await client.create_community("My Community")
     except ServerVersionMismatchError as e:
         print(f"Cannot connect: {e}")
+        print(f"This script only works with DSpace versions: {', '.join(TARGET_VERSIONS)}")
 """
 
 from .auth import DSpaceAuthClient

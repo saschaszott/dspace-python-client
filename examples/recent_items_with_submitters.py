@@ -11,6 +11,11 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn
 from dspace_client import DSpaceAuthClient, DSpaceClient
 
+# DEVELOPER DECLARES: This script is compatible with DSpace 9.0 only
+# (Submitter information endpoint only exists in DSpace 9+)
+# Users can only run this script against DSpace servers running version 9.0 or later
+TARGET_VERSIONS = ["9.0"]
+
 console = Console()
 
 
@@ -115,38 +120,15 @@ def generate_csv_data(items_data: List[Dict]) -> str:
     return output.getvalue()
 
 
-def parse_target_versions(input_str: str):
-    """Parse target versions from user input."""
-    from typing import Union, List
-    input_str = input_str.strip()
-    if not input_str:
-        return "bleeding-edge"
-    
-    # Handle comma-separated list
-    versions = [v.strip() for v in input_str.split(",") if v.strip()]
-    if len(versions) == 1:
-        return versions[0]
-    return versions
-
-
 async def main():
     """Generate recent items report with submitter information."""
     
-    # Prompt for target versions first
-    target_input = console.input(
-        "[bold cyan]Target DSpace versions[/bold cyan] [dim](comma-separated, e.g., 8.0,9.0 or press Enter for bleeding-edge):[/dim] "
-    ).strip()
-    target_versions = parse_target_versions(target_input)
+    # Show what versions this script supports
+    supported_str = ", ".join(TARGET_VERSIONS)
     
-    # Show supported versions in URL prompt
-    if isinstance(target_versions, list):
-        supported_str = ", ".join(target_versions)
-    else:
-        supported_str = target_versions
-    
-    # Interactive prompt for base URL with supported versions shown
+    # Prompt user for DSpace server URL
     base_url = console.input(
-        f"[bold cyan]DSpace base URL[/bold cyan] [dim](supported versions: {supported_str}, press Enter for https://demo.dspace.org):[/dim] "
+        f"[bold cyan]DSpace base URL[/bold cyan] [dim](this script supports versions: {supported_str}, press Enter for https://demo.dspace.org):[/dim] "
     ).strip()
     
     # Default to demo.dspace.org if user just pressed Enter
@@ -232,22 +214,23 @@ async def main():
     
     console.print(f"[dim]→ Will retrieve up to {max_items} items[/dim]")
     
-    # Create client with version specification
+    # Create client with developer-declared target versions
     client = DSpaceClient(
         base_url=base_url,
         jwt_token=jwt,
         csrf_token=auth.csrf_token,
         http_client=auth.client,
-        target_versions=target_versions,
+        target_versions=TARGET_VERSIONS,  # Uses developer-declared versions
         courtesy_delay=courtesy_delay,
     )
     
-    # Verify server version compatibility
+    # Verify server version matches developer-declared versions
     from dspace_client import ServerVersionMismatchError
     try:
         await client.verify_server_version(raise_on_mismatch=True)
     except ServerVersionMismatchError as e:
         console.print(f"[red]Version mismatch:[/red] {e}")
+        console.print(f"[yellow]This script only works with DSpace versions: {supported_str}[/yellow]")
         await auth.close()
         return
     

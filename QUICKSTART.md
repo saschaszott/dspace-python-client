@@ -10,25 +10,43 @@ pip install dspace-client
 
 ## Basic Usage
 
-### 1. Authenticate and Create Client with Version Validation
+### 1. Declare Version Compatibility (Developer)
+
+As a developer, declare which DSpace versions your script supports at the top of your script:
+
+```python
+# DEVELOPER DECLARES: This script is compatible with DSpace 8.0 and 9.0
+TARGET_VERSIONS = ["8.0", "9.0"]
+```
+
+### 2. Authenticate and Create Client with Version Validation (Runtime)
+
+At runtime, collect the URL from the user and validate against declared versions:
 
 ```python
 import asyncio
 from dspace_client import create_validated_client, ServerVersionMismatchError
 
 async def main():
+    # User provides URL at runtime
+    base_url = input("DSpace base URL: ")
+    username = input("Username: ")
+    password = input("Password: ")
+    
     try:
         # Authenticate and create client with automatic version validation
+        # Server version will be checked against TARGET_VERSIONS
         auth, client = await create_validated_client(
-            base_url="https://demo.dspace.org",
-            username="your_username",
-            password="your_password",
-            target_versions=["8.0", "9.0"]  # Server version will be validated
+            base_url=base_url,
+            username=username,
+            password=password,
+            target_versions=TARGET_VERSIONS  # Developer-declared versions
         )
         # Version validation happens automatically
         # If major version mismatch, ServerVersionMismatchError is raised
     except ServerVersionMismatchError as e:
         print(f"Cannot connect: {e}")
+        print(f"This script only works with DSpace versions: {', '.join(TARGET_VERSIONS)}")
         return
 ```
 
@@ -69,14 +87,22 @@ async def main():
 import asyncio
 from dspace_client import create_validated_client, ServerVersionMismatchError
 
+# DEVELOPER DECLARES: This script is compatible with DSpace 8.0 and 9.0
+TARGET_VERSIONS = ["8.0", "9.0"]
+
 async def main():
+    # User provides URL at runtime
+    base_url = input("DSpace base URL: ")
+    username = input("Username: ")
+    password = input("Password: ")
+    
     try:
         # Authenticate and create client with automatic version validation
         auth, client = await create_validated_client(
-            base_url="https://demo.dspace.org",
-            username="your_username",
-            password="your_password",
-            target_versions=["8.0", "9.0"]
+            base_url=base_url,
+            username=username,
+            password=password,
+            target_versions=TARGET_VERSIONS  # Developer-declared versions
         )
         
         # Create objects
@@ -95,6 +121,7 @@ async def main():
         await auth.close()
     except ServerVersionMismatchError as e:
         print(f"Cannot connect: {e}")
+        print(f"This script only works with DSpace versions: {', '.join(TARGET_VERSIONS)}")
 
 if __name__ == "__main__":
     asyncio.run(main())

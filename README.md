@@ -24,14 +24,23 @@ pip install dspace-client
 import asyncio
 from dspace_client import create_validated_client, ServerVersionMismatchError
 
+# DEVELOPER DECLARES: This script is compatible with DSpace 8.0 and 9.0
+TARGET_VERSIONS = ["8.0", "9.0"]
+
 async def main():
+    # User provides URL at runtime
+    base_url = input("DSpace base URL: ")
+    username = input("Username: ")
+    password = input("Password: ")
+    
     try:
         # Authenticate and create client with automatic version validation
+        # Server version will be checked against TARGET_VERSIONS
         auth, client = await create_validated_client(
-            base_url="https://demo.dspace.org",
-            username="user",
-            password="pass",
-            target_versions=["8.0", "9.0"]  # Server version will be validated
+            base_url=base_url,
+            username=username,
+            password=password,
+            target_versions=TARGET_VERSIONS  # Developer-declared versions
         )
         
         # Create a community (validated against target versions)
@@ -41,6 +50,7 @@ async def main():
         await auth.close()
     except ServerVersionMismatchError as e:
         print(f"Cannot connect: Server version mismatch - {e}")
+        print(f"This script only works with DSpace versions: {', '.join(TARGET_VERSIONS)}")
 ```
 
 ## Version-First Architecture
@@ -73,25 +83,32 @@ client = DSpaceClient(..., target_versions="bleeding-edge")
 
 3. **Pre-execution validation** - Before each API call, the client also validates that the operation is supported in your target version(s). If not, it raises a `VersionIncompatibilityError` **before** making the request.
 
-**Recommended Usage:**
+**Developer Workflow:**
 
-Use the `create_validated_client()` helper function for automatic version validation:
+As a developer, you declare which DSpace versions your script supports when you write it:
 
 ```python
+# DEVELOPER DECLARES: This script is compatible with DSpace 8.0 and 9.0
+TARGET_VERSIONS = ["8.0", "9.0"]
+
+# ... later in your script, when user provides URL ...
+
 from dspace_client import create_validated_client, ServerVersionMismatchError
 
 try:
     # Authenticates, creates client, and validates server version automatically
     auth, client = await create_validated_client(
-        base_url="https://demo.dspace.org",
-        username="admin@example.com",
-        password="password",
-        target_versions=["8.0", "9.0"]  # Server must be 8.0 or 9.0 (or minor variants)
+        base_url=base_url,  # User provides this at runtime
+        username=username,
+        password=password,
+        target_versions=TARGET_VERSIONS  # Developer-declared versions
     )
-    # Version validation happened automatically - if major mismatch, exception was raised
+    # Version validation happens automatically - server version is checked against TARGET_VERSIONS
+    # If major mismatch, ServerVersionMismatchError is raised
     await client.create_community("My Community")
 except ServerVersionMismatchError as e:
-    print(f"Cannot connect: {e}")
+    print(f"Cannot connect: Server version doesn't match declared compatibility")
+    print(f"This script only works with DSpace versions: {', '.join(TARGET_VERSIONS)}")
 ```
 
 **Manual Version Validation:**
@@ -99,6 +116,9 @@ except ServerVersionMismatchError as e:
 If you create the client manually, call `verify_server_version()` after initialization:
 
 ```python
+# DEVELOPER DECLARES: This script is compatible with DSpace 8.0 and 9.0
+TARGET_VERSIONS = ["8.0", "9.0"]
+
 from dspace_client import DSpaceAuthClient, DSpaceClient, ServerVersionMismatchError
 
 auth = DSpaceAuthClient("https://demo.dspace.org")
@@ -109,7 +129,7 @@ client = DSpaceClient(
     jwt_token=jwt,
     csrf_token=auth.csrf_token,
     http_client=auth.client,
-    target_versions=["8.0", "9.0"]
+    target_versions=TARGET_VERSIONS  # Developer-declared versions
 )
 
 # Validate server version (raises ServerVersionMismatchError on major mismatch)
@@ -117,6 +137,7 @@ try:
     await client.verify_server_version(raise_on_mismatch=True)
 except ServerVersionMismatchError as e:
     print(f"Version mismatch: {e}")
+    print(f"This script only works with DSpace versions: {', '.join(TARGET_VERSIONS)}")
     # Handle error...
 ```
 

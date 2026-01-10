@@ -62,27 +62,37 @@ The `target_versions` parameter in `DSpaceClient` restricts which DSpace servers
 
 5. **Operation validation** - Additionally, the client validates that all operations you call are supported in your target version(s). If an operation doesn't exist in all target versions, the client raises a `VersionIncompatibilityError` before making the request.
 
+**Developer Workflow:**
+
+As a developer, you declare which DSpace versions your script supports when writing it. At runtime, the user provides the URL, and the system validates the server version against your declared compatibility.
+
 **Recommended Usage - Use Helper Function:**
 
-The easiest way to use version validation is with the `create_validated_client()` helper:
-
 ```python
+# DEVELOPER DECLARES: This script is compatible with DSpace 8.0 and 9.0
+TARGET_VERSIONS = ["8.0", "9.0"]
+
 from dspace_client import create_validated_client, ServerVersionMismatchError
+
+# ... later, at runtime, user provides URL ...
+base_url = input("DSpace base URL: ")
+username = input("Username: ")
+password = input("Password: ")
 
 try:
     # Automatically authenticates, creates client, and validates server version
+    # Server version is checked against TARGET_VERSIONS
     auth, client = await create_validated_client(
-        base_url="https://demo.dspace.org",
-        username="admin@example.com",
-        password="password",
-        target_versions=["8.0", "9.0"]  # Server must be 8.0 or 9.0 (or minor variants like 9.1)
+        base_url=base_url,  # User provides at runtime
+        username=username,
+        password=password,
+        target_versions=TARGET_VERSIONS  # Developer-declared versions
     )
     # Version validation happened automatically
     await client.create_community("My Community")
 except ServerVersionMismatchError as e:
     print(f"Cannot connect: {e}")
-    print(f"Server version: {e.server_version}")
-    print(f"Target versions: {e.target_versions}")
+    print(f"This script only works with DSpace versions: {', '.join(TARGET_VERSIONS)}")
 ```
 
 **Manual Usage:**
@@ -90,17 +100,20 @@ except ServerVersionMismatchError as e:
 If you create the client manually, call `verify_server_version()` after initialization:
 
 ```python
+# DEVELOPER DECLARES: This script is compatible with DSpace 8.0 and 9.0
+TARGET_VERSIONS = ["8.0", "9.0"]
+
 from dspace_client import DSpaceAuthClient, DSpaceClient, ServerVersionMismatchError
 
-auth = DSpaceAuthClient("https://demo.dspace.org")
-jwt, status = await auth.authenticate("user", "pass")
+auth = DSpaceAuthClient(base_url)  # User provides base_url at runtime
+jwt, status = await auth.authenticate(username, password)
 
 client = DSpaceClient(
-    base_url="https://demo.dspace.org",
+    base_url=base_url,
     jwt_token=jwt,
     csrf_token=auth.csrf_token,
     http_client=auth.client,
-    target_versions=["8.0", "9.0"]
+    target_versions=TARGET_VERSIONS  # Developer-declared versions
 )
 
 # Validate server version (raises ServerVersionMismatchError on major mismatch)
@@ -108,24 +121,31 @@ try:
     await client.verify_server_version(raise_on_mismatch=True)
 except ServerVersionMismatchError as e:
     print(f"Version mismatch: {e}")
+    print(f"This script only works with DSpace versions: {', '.join(TARGET_VERSIONS)}")
     # Handle error...
 ```
 
 **Real-world scenario:**
 ```python
-# You're building an application that works with DSpace 8.0 and 9.0
+# DEVELOPER DECLARES: This application works with DSpace 8.0 and 9.0
+TARGET_VERSIONS = ["8.0", "9.0"]
+
+# ... user provides URL at runtime ...
+base_url = "https://production-dspace.org"
+
 auth, client = await create_validated_client(
-    base_url="https://production-dspace.org",
+    base_url=base_url,
     username="admin",
     password="pass",
-    target_versions=["8.0", "9.0"]  # Server must be 8.0, 8.1, 9.0, 9.1, etc.
+    target_versions=TARGET_VERSIONS  # Server must match one of these
 )
 
-# If server is 7.6 → ServerVersionMismatchError is raised
-# If server is 8.0 → ✅ Allowed
-# If server is 8.1 → ⚠️ Warning but allowed (minor version difference)
-# If server is 9.0 → ✅ Allowed
-# If server is 9.1 → ⚠️ Warning but allowed (minor version difference)
+# Validation results:
+# If server is 7.6 → ServerVersionMismatchError is raised (major mismatch)
+# If server is 8.0 → ✅ Allowed (exact match)
+# If server is 8.1 → ⚠️ Warning but allowed (minor version difference, same major)
+# If server is 9.0 → ✅ Allowed (exact match)
+# If server is 9.1 → ⚠️ Warning but allowed (minor version difference, same major)
 
 # Operations are also validated
 await client.create_community("My Community")  # Works - exists in 8.0 and 9.0

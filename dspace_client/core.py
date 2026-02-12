@@ -866,7 +866,85 @@ class DSpaceClient:
         """Get full item details by UUID."""
         response = await self._request("GET", f"core/items/{uuid}")
         return response.json()
-    
+
+    async def patch_item(self, uuid: str, operations: list) -> dict:
+        """
+        Update item with JSON Patch operations (RFC 6902).
+
+        Args:
+            uuid: Item UUID
+            operations: List of patch operations, e.g. [{"op": "replace", "path": "/metadata/dc.contributor.author/0", "value": {...}}]
+
+        Returns:
+            Updated item object
+        """
+        response = await self._request(
+            "PATCH",
+            f"core/items/{uuid}",
+            json_data=operations,  # type: ignore[arg-type]
+        )
+        return response.json()
+
+    async def get_vocabulary_entries(
+        self,
+        vocabulary_name: str,
+        filter_term: Optional[str] = None,
+        exact: bool = False,
+        page: int = 0,
+        size: int = 20,
+        entry_id: Optional[str] = None,
+    ) -> dict:
+        """
+        Get entries from a controlled vocabulary (e.g. local author authority).
+
+        Use for local authority lookup: vocabularies like CacheableAuthorAuthority
+        or SolrAuthorAuthority return entries from this repository's SOLR authority
+        core only (not the public ORCID registry).
+
+        Args:
+            vocabulary_name: e.g. "CacheableAuthorAuthority" or "SolrAuthorAuthority"
+            filter_term: Terms to filter entries (mandatory unless vocabulary is scrollable or entry_id is set)
+            exact: If True, return only entries that match the filter exactly
+            page: Page number
+            size: Page size
+            entry_id: Get entries for a specific vocabulary entry ID (alternative to filter_term)
+
+        Returns:
+            JSON with _embedded.entries (each entry may have authority, display, value, _links.vocabularyEntryDetail)
+        """
+        params: dict = {"page": page, "size": size}
+        if filter_term is not None:
+            params["filter"] = filter_term
+            params["exact"] = exact
+        if entry_id is not None:
+            params["entryID"] = entry_id
+        response = await self._request(
+            "GET",
+            f"submission/vocabularies/{vocabulary_name}/entries",
+            params=params,
+        )
+        return response.json()
+
+    async def get_vocabulary_entry_detail(self, vocabulary_name: str, entry_id: str) -> Optional[dict]:
+        """
+        Get detailed info for a vocabulary entry (e.g. for ORCID display).
+
+        Args:
+            vocabulary_name: e.g. "CacheableAuthorAuthority"
+            entry_id: Entry ID (e.g. authority UUID)
+
+        Returns:
+            JSON detail or None if not found / not available
+        """
+        try:
+            response = await self._request(
+                "GET",
+                f"submission/vocabularyEntryDetails/{vocabulary_name}:{entry_id}",
+            )
+            return response.json()
+        except Exception:
+            return None
+
     async def get_eperson(self, uuid: str) -> dict:
         """Get EPerson details by UUID."""
         response = await self._request("GET", f"eperson/epersons/{uuid}")

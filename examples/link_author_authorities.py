@@ -19,15 +19,19 @@ Run with the project venv (see README "Development")::
 
 import asyncio
 import getpass
+import json
 import os
 import sys
 from datetime import datetime
-from typing import List, Optional, Tuple
+import time
+from typing import Awaitable, Callable, List, Optional, Tuple
+import unicodedata
 
 from rich.console import Console
 from rich.panel import Panel
 
-from dspace_client import DSpaceAuthClient, DSpaceClient
+from dspace_client import AuthenticationError, DSpaceAPIError, DSpaceAuthClient, DSpaceClient
+from dspace_client.throttle import ThrottleConfig, ThrottleController
 
 # Compatible with DSpace 7.x, 8.x, 9.x (items PATCH and submission vocabularies)
 TARGET_VERSIONS = ["7.0", "8.0", "9.0"]
@@ -41,11 +45,107 @@ CONFIDENCE_LINKED = 600
 console = Console()
 
 
-def normalize_name(s: str) -> str:
-    """Normalize author name for exact match (strip, collapse spaces)."""
+async def _ensure_fresh_session(
+    auth: DSpaceAuthClient,
+    client: DSpaceClient,
+    username: str,
+    password: str,
+) -> None:
+    """
+    Proactively refresh the session if it is near or past its configured max age.
+    
+    Updates the DSpaceClient's JWT/CSRF tokens if a refresh occurs.
+    """
+    jwt = await auth.ensure_session(username, password)
+    # Keep client in sync with latest auth tokens
+    client.jwt_token = auth.jwt_token or jwt
+    if auth.csrf_token:
+        client.csrf_token = auth.csrf_token
+
+
+async def _call_with_reauth(
+    auth: DSpaceAuthClient,
+    client: DSpaceClient,
+    username: str,
+    password: str,
+    func: Callable[[], Awaitable],
+) -> object:
+    """
+    Wrap a DSpaceClient operation so that:
+    - It uses proactive session refresh via _ensure_fresh_session.
+    - On first 401 DSpaceAPIError, it forces re-auth and retries once.
+    """
+    await _ensure_fresh_session(auth, client, username, password)
+    retry_on_401 = os.environ.get("DSPACE_RETRY_ON_401", "1").lower() not in ("0", "false", "no")
+
+    try:
+        return await func()
+    except DSpaceAPIError as e:
+        status = getattr(e, "status_code", None)
+        if not retry_on_401 or status != 401:
+            raise
+
+        console.print("[yellow]Received 401 from DSpace API; refreshing session and retrying once...[/yellow]")
+        # Force re-auth and sync client tokens, then retry once
+        jwt = await auth.ensure_session(username, password, force=True)
+        client.jwt_token = auth.jwt_token or jwt
+        if auth.csrf_token:
+            client.csrf_token = auth.csrf_token
+
+        return await func()
+
+
+async def _throttled_call(
+    auth: DSpaceAuthClient,
+    client: DSpaceClient,
+    username: str,
+    password: str,
+    throttle: ThrottleController,
+    func: Callable[[], Awaitable],
+) -> object:
+    """
+    Wrap a DSpaceClient operation with adaptive, single-threaded throttling.
+    
+    This keeps execution linear:
+    - Sleep for the current delay
+    - Delegate to _call_with_reauth (which handles session refresh/401 retry)
+    - Record duration and any HTTP status code for feedback
+    """
+    await throttle.before_call()
+    start = time.time()
+    try:
+        result = await _call_with_reauth(auth, client, username, password, func)
+        duration = time.time() - start
+        await throttle.after_call(duration, success=True, status_code=None)
+        return result
+    except DSpaceAPIError as e:
+        duration = time.time() - start
+        status = getattr(e, "status_code", None)
+        await throttle.after_call(duration, success=False, status_code=status)
+        raise
+    except Exception:
+        duration = time.time() - start
+        await throttle.after_call(duration, success=False, status_code=None)
+        raise
+
+
+def _strip_accents(s: str) -> str:
+    """Remove diacritics from a string while preserving base characters."""
     if not s:
         return ""
-    return " ".join(s.split())
+    return "".join(
+        ch for ch in unicodedata.normalize("NFKD", s) if not unicodedata.combining(ch)
+    )
+
+
+def normalize_name(s: str) -> str:
+    """Normalize author name for exact match (strip spaces, ignore accents, lowercase)."""
+    if not s:
+        return ""
+    # Collapse whitespace, then strip accents and lowercase for accent-insensitive matching
+    collapsed = " ".join(s.split())
+    no_accents = _strip_accents(collapsed)
+    return no_accents.lower()
 
 
 def _parse_family_first(name: str) -> Tuple[str, str]:
@@ -70,8 +170,9 @@ def _normalize_initials(s: str) -> str:
     """Normalize an initials string for comparison: 'J. M.' -> 'J M', 'J.M.' -> 'J M'."""
     if not s:
         return ""
-    # Remove periods and collapse spaces, then rejoin with single space
-    cleaned = " ".join(s.replace(".", " ").split()).upper()
+    # Strip accents, remove periods and collapse spaces, then rejoin with single space
+    base = _strip_accents(s)
+    cleaned = " ".join(base.replace(".", " ").split()).upper()
     return cleaned
 
 
@@ -154,16 +255,137 @@ def _log(log_file: Optional[object], line: str) -> None:
         log_file.flush()
 
 
-async def discover_item_uuids_newest_first(client: DSpaceClient, page_size: int = 100) -> List[str]:
+def _first_metadata_value(metadata: dict, key: str) -> str:
+    """Get first metadata value for a key, or empty string."""
+    vals = metadata.get(key) or []
+    if not isinstance(vals, list) or not vals:
+        return ""
+    first = vals[0]
+    if isinstance(first, dict):
+        return str(first.get("value") or "").strip()
+    return str(first).strip()
+
+
+def _all_metadata_values(metadata: dict, key: str) -> List[str]:
+    """Get all metadata values for a key as strings."""
+    vals = metadata.get(key) or []
+    result: List[str] = []
+    if not isinstance(vals, list):
+        return result
+    for v in vals:
+        if isinstance(v, dict):
+            s = str(v.get("value") or "").strip()
+        else:
+            s = str(v).strip()
+        if s:
+            result.append(s)
+    return result
+
+
+STATE_ENV_VAR = "LINK_AUTHOR_STATE_FILE"
+DEFAULT_STATE_FILENAME = "link_author_authorities_state.jsonl"
+
+
+def _get_state_path(log_dir: str) -> str:
+    """Compute path for the incremental state file."""
+    override = os.environ.get(STATE_ENV_VAR)
+    if override:
+        return override
+    return os.path.join(log_dir, DEFAULT_STATE_FILENAME)
+
+
+def _load_attempt_state(path: str) -> dict[str, datetime]:
+    """Load last-attempt timestamps per item UUID from a JSONL state file."""
+    state: dict[str, datetime] = {}
+    if not os.path.exists(path):
+        return state
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except Exception:
+                    continue
+                uuid = rec.get("uuid")
+                ts = rec.get("last_attempt")
+                if not uuid or not ts:
+                    continue
+                try:
+                    dt = datetime.fromisoformat(ts)
+                except Exception:
+                    continue
+                state[uuid] = dt
+    except OSError:
+        return state
+    return state
+
+
+def _append_attempt_state(path: str, item_uuid: str, when: datetime) -> None:
+    """Append a single attempt record to the state file."""
+    rec = {"uuid": item_uuid, "last_attempt": when.isoformat()}
+    try:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec) + "\n")
+    except OSError:
+        # Best-effort only; do not fail the whole run if we can't write state
+        return
+
+
+def _should_process_uuid(
+    item_uuid: str,
+    mode: str,
+    state: dict[str, datetime],
+    now: datetime,
+    min_age_days: Optional[int],
+) -> bool:
+    """
+    Decide whether to process a given item UUID based on incremental state.
+    
+    Modes:
+    - "new": only items never seen before.
+    - "since": items never seen OR last attempt at least `min_age_days` ago.
+    - "force": always process.
+    """
+    if mode == "force":
+        return True
+    last = state.get(item_uuid)
+    if last is None:
+        return True  # new in both "new" and "since" modes
+    if mode == "new":
+        return False
+    if mode == "since" and min_age_days is not None:
+        delta = now - last
+        return delta.days >= min_age_days
+    return True
+
+
+async def discover_item_uuids_newest_first(
+    auth: DSpaceAuthClient,
+    client: DSpaceClient,
+    username: str,
+    password: str,
+    throttle: ThrottleController,
+    page_size: int = 100,
+) -> List[str]:
     """Discover all item UUIDs via discovery API, newest first. Paginates until no more results."""
     uuids: List[str] = []
     page = 0
     while True:
-        results = await client.search_items(
-            query="*",
-            sort="dc.date.accessioned,desc",
-            page=page,
-            size=page_size,
+        results = await _throttled_call(
+            auth,
+            client,
+            username,
+            password,
+            throttle,
+            lambda: client.search_items(
+                query="*",
+                sort="dc.date.accessioned,desc",
+                page=page,
+                size=page_size,
+            ),
         )
         objects = (
             results.get("_embedded") or {}
@@ -182,10 +404,14 @@ async def discover_item_uuids_newest_first(client: DSpaceClient, page_size: int 
 
 
 async def process_item(
+    auth: DSpaceAuthClient,
     client: DSpaceClient,
+    username: str,
+    password: str,
+    throttle: ThrottleController,
     item_uuid: str,
     vocabulary_name: str,
-    review_each_match: bool,
+    auto_link_single: bool,
     use_fuzzy: bool,
     log_file: Optional[object],
 ) -> Tuple[int, int, int]:
@@ -195,19 +421,39 @@ async def process_item(
     Returns (linked_count, skipped_user, no_match_count).
     """
     try:
-        item = await client.get_item(item_uuid)
+        item = await _throttled_call(
+            auth,
+            client,
+            username,
+            password,
+            throttle,
+            lambda: client.get_item(item_uuid),
+        )
+    except AuthenticationError as e:
+        console.print(f"[red]Authentication error while getting item {item_uuid}: {e}[/red]")
+        # Fatal: bubble up so the main loop can abort the run
+        raise
     except Exception as e:
         console.print(f"[red]Failed to get item {item_uuid}: {e}[/red]")
         return (0, 0, 0)
 
     metadata = item.get("metadata") or {}
+    title = _first_metadata_value(metadata, "dc.title")
+    uris = _all_metadata_values(metadata, "dc.identifier.uri")
+    uris_str = ",".join(uris) if uris else ""
     unlinked = get_unlinked_authors(metadata)
-    _log(log_file, f"ITEM {item_uuid} unlinked_count={len(unlinked)}")
+    _log(
+        log_file,
+        f"ITEM uuid={item_uuid} title={title!r} uris={uris_str!r} unlinked_count={len(unlinked)}",
+    )
 
     if not unlinked:
         return (0, 0, 0)
 
-    console.print(f"[cyan]Item {item_uuid}: found {len(unlinked)} unlinked author(s).[/cyan]")
+    console.print(
+        f"[cyan]Item {item_uuid}: '{title}' ({uris_str or 'no dc.identifier.uri'}) – "
+        f"found {len(unlinked)} unlinked author(s).[/cyan]"
+    )
 
     linked_count = 0
     skipped_user = 0
@@ -231,12 +477,19 @@ async def process_item(
                     page = 0
                     size = 100
                     while True:
-                        resp = await client.get_vocabulary_entries(
-                            vocabulary_name,
-                            filter_term=family,
-                            exact=False,
-                            page=page,
-                            size=size,
+                        resp = await _throttled_call(
+                            auth,
+                            client,
+                            username,
+                            password,
+                            throttle,
+                            lambda: client.get_vocabulary_entries(
+                                vocabulary_name,
+                                filter_term=family,
+                                exact=False,
+                                page=page,
+                                size=size,
+                            ),
                         )
                         entries = (resp.get("_embedded") or {}).get("entries") or []
                         for e in entries:
@@ -249,12 +502,19 @@ async def process_item(
                             break
                         page += 1
             else:
-                resp = await client.get_vocabulary_entries(
-                    vocabulary_name,
-                    filter_term=author_value,
-                    exact=True,
-                    page=0,
-                    size=20,
+                resp = await _throttled_call(
+                    auth,
+                    client,
+                    username,
+                    password,
+                    throttle,
+                    lambda: client.get_vocabulary_entries(
+                        vocabulary_name,
+                        filter_term=author_value,
+                        exact=True,
+                        page=0,
+                        size=20,
+                    ),
                 )
                 entries = (resp.get("_embedded") or {}).get("entries") or []
                 matching = [
@@ -264,43 +524,130 @@ async def process_item(
                     and normalize_name((e.get("display") or e.get("value") or "")) == normalized
                     and e.get("authority")
                 ]
+        except AuthenticationError as e:
+            console.print(
+                f"[red]Authentication error during vocabulary lookup for '{author_value}': {e}[/red]"
+            )
+            # Fatal: bubble up so the main loop can abort the run
+            raise
         except Exception as e:
             console.print(f"[red]Vocabulary lookup failed for '{author_value}': {e}[/red]")
             no_match_count += 1
-            _log(log_file, f"NO_MATCH item_uuid={item_uuid} author={author_value!r} reason=lookup_error")
+            _log(
+                log_file,
+                f"NO_MATCH item_uuid={item_uuid} title={title!r} uris={uris_str!r} "
+                f"author={author_value!r} reason=lookup_error",
+            )
             continue
 
         if not matching:
             console.print(f"[yellow]No local authority match for: {author_value!r}[/yellow]")
             no_match_count += 1
-            _log(log_file, f"NO_MATCH item_uuid={item_uuid} author={author_value!r}")
+            _log(
+                log_file,
+                f"NO_MATCH item_uuid={item_uuid} title={title!r} uris={uris_str!r} "
+                f"author={author_value!r}",
+            )
             continue
 
-        entry = matching[0]
-        authority_uuid = entry.get("authority") or ""
+        # Decide which authority entry to use.
+        selected_entry: Optional[dict] = None
+
+        if len(matching) > 1:
+            # Multiple possible matches: always require explicit user choice.
+            lines = [
+                f"Multiple local authority matches found for [bold]{author_value}[/bold]:",
+            ]
+            for opt_idx, cand in enumerate(matching, 1):
+                cand_name = cand.get("display") or cand.get("value") or ""
+                cand_auth = cand.get("authority") or ""
+                lines.append(f"{opt_idx}. {cand_name} (authority={cand_auth})")
+            console.print(
+                Panel(
+                    "\n".join(lines),
+                    title="Select authority to link",
+                    border_style="cyan",
+                )
+            )
+
+            while True:
+                choice_raw = console.input(
+                    "[bold]Enter number to link, or 0 to skip[/bold]: "
+                ).strip()
+                try:
+                    choice = int(choice_raw)
+                except ValueError:
+                    console.print("[red]Please enter a valid number.[/red]")
+                    continue
+
+                if choice == 0:
+                    console.print("[dim]Skipped by user (multiple matches).[/dim]")
+                    skipped_user += 1
+                    _log(
+                        log_file,
+                        f"SKIP item_uuid={item_uuid} title={title!r} uris={uris_str!r} "
+                        f"author={author_value!r} reason=multiple_matches",
+                    )
+                    selected_entry = None
+                    break
+
+                if 1 <= choice <= len(matching):
+                    selected_entry = matching[choice - 1]
+                    break
+
+                console.print("[red]Choice out of range.[/red]")
+
+            if selected_entry is None:
+                continue
+        else:
+            # Exactly one match; respect auto_link_single flag.
+            selected_entry = matching[0]
+            authority_uuid_preview = selected_entry.get("authority") or ""
+            if not authority_uuid_preview:
+                no_match_count += 1
+                continue
+
+            if not auto_link_single:
+                # Require per-match confirmation for even single matches.
+                detail_preview = await fetch_entry_detail(
+                    client, vocabulary_name, authority_uuid_preview
+                )
+                orcid_preview = extract_orcid_from_entry(
+                    selected_entry, detail_preview
+                )
+                lines = [
+                    f"Author (item): [bold]{author_value}[/bold]",
+                    f"Authority UUID: [bold]{authority_uuid_preview}[/bold]",
+                ]
+                if orcid_preview:
+                    lines.append(
+                        f"ORCID: [link={orcid_preview}]{orcid_preview}[/link]"
+                    )
+                console.print(
+                    Panel(
+                        "\n".join(lines),
+                        title="Link this author to the above authority?",
+                        border_style="cyan",
+                    )
+                )
+                answer = console.input("[bold]Link? (y/n)[/bold]: ").strip().lower()
+                if answer not in ("y", "yes"):
+                    console.print("[dim]Skipped by user.[/dim]")
+                    skipped_user += 1
+                    _log(
+                        log_file,
+                        f"SKIP item_uuid={item_uuid} title={title!r} uris={uris_str!r} "
+                        f"author={author_value!r} authority={authority_uuid_preview}",
+                    )
+                    continue
+
+        authority_uuid = selected_entry.get("authority") or ""
         if not authority_uuid:
             no_match_count += 1
             continue
 
         detail = await fetch_entry_detail(client, vocabulary_name, authority_uuid)
-        orcid_url = extract_orcid_from_entry(entry, detail)
-
-        if review_each_match:
-            lines = [
-                f"Author (item): [bold]{author_value}[/bold]",
-                f"Authority UUID: [bold]{authority_uuid}[/bold]",
-            ]
-            if orcid_url:
-                lines.append(f"ORCID: [link={orcid_url}]{orcid_url}[/link]")
-            console.print(
-                Panel("\n".join(lines), title="Link this author to the above authority?", border_style="cyan")
-            )
-            answer = console.input("[bold]Link? (y/n)[/bold]: ").strip().lower()
-            if answer not in ("y", "yes"):
-                console.print("[dim]Skipped by user.[/dim]")
-                skipped_user += 1
-                _log(log_file, f"SKIP item_uuid={item_uuid} author={author_value!r} authority={authority_uuid}")
-                continue
+        orcid_url = extract_orcid_from_entry(selected_entry, detail)
 
         # PATCH
         patch_value = {
@@ -313,10 +660,28 @@ async def process_item(
             {"op": "replace", "path": f"/metadata/{AUTHOR_FIELD}/{idx}", "value": patch_value}
         ]
         try:
-            await client.patch_item(item_uuid, operations)
-            console.print("[green]Linked.[/green]")
+            await _throttled_call(
+                auth,
+                client,
+                username,
+                password,
+                throttle,
+                lambda: client.patch_item(item_uuid, operations),
+            )
+            orcid_display = orcid_url or ""
+            console.print(f"[green]Linked:[/green] {author_value!r}")
             linked_count += 1
-            _log(log_file, f"LINK item_uuid={item_uuid} author={author_value!r} authority={authority_uuid}")
+            _log(
+                log_file,
+                f"LINK item_uuid={item_uuid} title={title!r} uris={uris_str!r} "
+                f"author={author_value!r} authority={authority_uuid} orcid={orcid_display!r}",
+            )
+        except AuthenticationError as e:
+            console.print(
+                f"[red]Authentication error during PATCH for item {item_uuid}: {e}[/red]"
+            )
+            # Fatal: bubble up so the main loop can abort the run
+            raise
         except Exception as e:
             console.print(f"[red]PATCH failed: {e}[/red]")
 
@@ -376,6 +741,10 @@ async def main() -> None:
         courtesy_delay=courtesy_delay,
     )
 
+    # --- Adaptive throttle (single-threaded, delay-based) ---
+    throttle_config = ThrottleConfig(initial_delay=courtesy_delay)
+    throttle = ThrottleController(throttle_config)
+
     # --- 5. Exact or Fuzzy matching ---
     while True:
         match_mode = console.input(
@@ -398,11 +767,11 @@ async def main() -> None:
             continue
         console.print("[red]Please type exactly [bold]Exact[/bold] or [bold]Fuzzy[/bold].[/red]")
 
-    # --- 6. Review every ORCID match? ---
+    # --- 6. Auto-link single unambiguous matches? ---
     review_ans = console.input(
-        "[bold cyan]Do you want to review and approve every ORCID match?[/bold cyan] (y/n): "
+        "[bold cyan]Allow automatic linking when there is exactly one local authority match?[/bold cyan] (y/n): "
     ).strip().lower()
-    review_each_match = review_ans in ("y", "yes")
+    auto_link_single = review_ans in ("y", "yes")
 
     # --- 7. Item UUID (optional; empty = all items, newest first) ---
     item_uuid_input = (
@@ -412,6 +781,30 @@ async def main() -> None:
             "[bold cyan]Item UUID[/bold cyan] [dim](press Enter to process all items, newest first):[/dim] "
         ).strip()
     )
+
+    # --- 8. Incremental run mode (only for repository-wide runs) ---
+    run_mode = "force"
+    min_age_days: Optional[int] = None
+    if not item_uuid_input:
+        mode_input = console.input(
+            "[bold cyan]Run mode[/bold cyan] "
+            "[dim]([N]ew only, [S]ince days, [F]orce all; press Enter for New only):[/dim] "
+        ).strip().lower()
+        if mode_input in ("s", "since"):
+            run_mode = "since"
+            days_str = console.input(
+                "[bold cyan]Re-run items not updated for at least how many days?[/bold cyan]: "
+            ).strip()
+            try:
+                min_age_days = int(days_str)
+            except ValueError:
+                min_age_days = 0
+        elif mode_input in ("f", "force"):
+            run_mode = "force"
+            min_age_days = None
+        else:
+            run_mode = "new"
+            min_age_days = None
 
     # --- Log file ---
     log_dir = os.environ.get("LINK_AUTHOR_LOG_DIR", ".")
@@ -425,6 +818,11 @@ async def main() -> None:
     else:
         console.print(f"[dim]Log file: {log_path}[/dim]")
 
+    # --- Incremental state (per item UUID) ---
+    state_path = _get_state_path(log_dir)
+    attempt_state = _load_attempt_state(state_path)
+    now = datetime.now()
+
     total_linked = 0
     total_skipped = 0
     total_no_match = 0
@@ -432,10 +830,19 @@ async def main() -> None:
 
     try:
         if item_uuid_input:
-            # Single item
+            # Single item – no incremental mode questions, always attempt
             console.print(f"[cyan]Processing item {item_uuid_input}[/cyan]")
             linked, skipped, no_match = await process_item(
-                client, item_uuid_input, vocabulary_name, review_each_match, use_fuzzy, log_file
+                auth,
+                client,
+                username,
+                password,
+                throttle,
+                item_uuid_input,
+                vocabulary_name,
+                auto_link_single,
+                use_fuzzy,
+                log_file,
             )
             total_linked += linked
             total_skipped += skipped
@@ -444,17 +851,42 @@ async def main() -> None:
         else:
             # All items (newest first)
             console.print("[cyan]Discovering all items (newest first)...[/cyan]")
-            uuids = await discover_item_uuids_newest_first(client)
+            uuids = await discover_item_uuids_newest_first(
+                auth, client, username, password, throttle
+            )
             console.print(f"[cyan]Found {len(uuids)} item(s). Processing each.[/cyan]")
             for i, uuid in enumerate(uuids, 1):
+                if not _should_process_uuid(uuid, run_mode, attempt_state, now, min_age_days):
+                    console.print(
+                        f"[dim]Item {i}/{len(uuids)}: {uuid} – skipped by incremental run mode.[/dim]"
+                    )
+                    continue
+
                 console.print(f"[dim]Item {i}/{len(uuids)}: {uuid}[/dim]")
                 linked, skipped, no_match = await process_item(
-                    client, uuid, vocabulary_name, review_each_match, use_fuzzy, log_file
+                    auth,
+                    client,
+                    username,
+                    password,
+                    throttle,
+                    uuid,
+                    vocabulary_name,
+                    auto_link_single,
+                    use_fuzzy,
+                    log_file,
                 )
                 total_linked += linked
                 total_skipped += skipped
                 total_no_match += no_match
                 items_processed += 1
+                attempt_state[uuid] = now
+                _append_attempt_state(state_path, uuid, now)
+    except AuthenticationError as e:
+        console.print(
+            "[red]Fatal authentication error (e.g. CSRF/login refresh failed). "
+            "Aborting run.[/red]"
+        )
+        console.print(f"[dim]{e}[/dim]")
 
         # --- Summary ---
         console.print("\n[bold cyan]Summary[/bold cyan]")

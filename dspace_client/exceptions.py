@@ -14,8 +14,15 @@ class AuthenticationError(DSpaceClientError):
 
 
 class DSpaceAPIError(DSpaceClientError):
-    """Raised when DSpace API returns an error."""
-    pass
+    """Raised when DSpace API returns an error.
+    
+    Attributes:
+        status_code: Optional HTTP status code from the response, if available.
+    """
+    
+    def __init__(self, message: str, status_code: Optional[int] = None):
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class VersionIncompatibilityError(DSpaceClientError):

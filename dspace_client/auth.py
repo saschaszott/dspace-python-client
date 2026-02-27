@@ -1,6 +1,8 @@
 """Authentication client for DSpace REST API."""
 
 import httpx
+import os
+import time
 from typing import Optional
 from rich.console import Console
 
@@ -27,6 +29,13 @@ class DSpaceAuthClient:
         self.jwt_token: Optional[str] = None
         # Use a persistent client to maintain cookies across requests
         self.client: Optional[httpx.AsyncClient] = None
+        # Track session timing for proactive refresh
+        self._last_auth_time: Optional[float] = None
+        # Max session age before we proactively refresh, in seconds
+        # Default ~25 minutes; configurable via env for tuning.
+        self.max_session_age_seconds: float = float(
+            os.environ.get("DSPACE_SESSION_MAX_AGE_SECONDS", str(25 * 60))
+        )
     
     async def _ensure_client(self):
         """
@@ -196,6 +205,8 @@ class DSpaceAuthClient:
             # console.print(f"[dim]  JWT Token: {jwt_token[:20]}...[/dim]")
             
             self.jwt_token = jwt_token
+            # Record successful auth time for proactive refresh logic
+            self._last_auth_time = time.time()
             return jwt_token
         
         except httpx.RequestError as e:
@@ -268,6 +279,38 @@ class DSpaceAuthClient:
         jwt_token = await self.login(username, password)
         status = await self.verify_authentication()
         return jwt_token, status
+    
+    async def ensure_session(self, username: str, password: str, force: bool = False) -> str:
+        """
+        Ensure there is a valid, reasonably fresh authenticated session.
+        
+        This is designed for long-running jobs:
+        - Uses a configurable max session age (default ~25 minutes).
+        - Can be forced to re-authenticate unconditionally (e.g. after a 401).
+        
+        Args:
+            username: DSpace admin username
+            password: DSpace admin password
+            force: If True, always re-authenticate, ignoring cached state.
+        
+        Returns:
+            Current JWT token (possibly refreshed)
+        """
+        if force or not self.jwt_token or not self._last_auth_time:
+            jwt, _ = await self.authenticate(username, password)
+            return jwt
+        
+        now = time.time()
+        age = now - self._last_auth_time
+        if age >= self.max_session_age_seconds:
+            console.print(
+                f"[dim]Refreshing DSpace session (age {int(age)}s ≥ "
+                f"max {int(self.max_session_age_seconds)}s)[/dim]"
+            )
+            jwt, _ = await self.authenticate(username, password)
+            return jwt
+        
+        return self.jwt_token
     
     async def is_session_valid(self) -> bool:
         """

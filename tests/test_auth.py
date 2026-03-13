@@ -70,18 +70,40 @@ class TestDSpaceAuthClient:
     
     @pytest.mark.asyncio
     async def test_get_csrf_token_missing_header(self):
-        """Test CSRF token retrieval when header is missing."""
+        """Test CSRF token retrieval when header is missing from both HEAD and GET."""
         auth = DSpaceAuthClient("https://demo.dspace.org")
         
-        # Mock the client and response
+        # Mock the client: HEAD and GET both return no token (fallback also fails)
         mock_client = AsyncMock()
         mock_response = AsyncMock()
-        mock_response.headers = {}  # No CSRF token header
+        mock_response.headers = {}
         mock_client.head.return_value = mock_response
+        mock_client.get.return_value = mock_response
         auth.client = mock_client
         
         with pytest.raises(AuthenticationError, match="CSRF token not found"):
             await auth.get_csrf_token()
+    
+    @pytest.mark.asyncio
+    async def test_get_csrf_token_get_fallback(self):
+        """Test that GET is used when HEAD does not return the token."""
+        auth = DSpaceAuthClient("https://demo.dspace.org")
+        
+        mock_client = AsyncMock()
+        head_response = AsyncMock()
+        head_response.headers = {}  # No token on HEAD
+        get_response = AsyncMock()
+        get_response.headers = {"dspace-xsrf-token": "token-from-get"}
+        mock_client.head.return_value = head_response
+        mock_client.get.return_value = get_response
+        auth.client = mock_client
+        
+        token, cookie = await auth.get_csrf_token()
+        
+        assert token == "token-from-get"
+        assert cookie == "token-from-get"
+        mock_client.head.assert_called_once()
+        mock_client.get.assert_called_once()
     
     @pytest.mark.asyncio
     async def test_login_success(self):

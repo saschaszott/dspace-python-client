@@ -6,15 +6,19 @@ unlinked author to an authority already in this repository's SOLR authority core
 Uses the local vocabulary endpoint (e.g. CacheableAuthorAuthority) only — does
 NOT search the public ORCID registry.
 
-You can choose Exact or Fuzzy author matching (Fuzzy allows "Smith, J." to match "Smith, John");
-and whether to review every ORCID match or auto-link. Item UUID is optional: leave empty to
-process all items (newest first). Each run writes a timestamped log file.
+Modes: [I]tem (one UUID), [R]epository (all items, with run mode), [O]RCID (one ORCID
+→ find items by that authority's name and link unlinked authors), [N]ame (one name
+→ find items by author filter, then link to vocabulary or a given ORCID).
+[O] and [N] use the Discovery Search API (see docs/dspace-rest-api/7.6/search-endpoint.md)
+with the author filter.
+
+You can choose Exact or Fuzzy author matching; and whether to auto-link when there is
+exactly one local authority match. Each run writes a timestamped log file.
 
 Run with the project venv (see README "Development")::
   source venv/bin/activate
-  python examples/link_author_authorities.py [item-uuid]
-  # or: ./venv/bin/python examples/link_author_authorities.py [item-uuid]
-  # Leave item UUID empty to process all items (newest first). Run can take a long time; Ctrl+C is safe, log is still written.
+  python examples/link_author_authorities.py
+  # For Item mode you can pass a UUID: python examples/link_author_authorities.py <item-uuid>
 """
 
 import asyncio
@@ -403,6 +407,142 @@ async def discover_item_uuids_newest_first(
     return uuids
 
 
+def _normalize_orcid_input(raw: str) -> str:
+    """Extract digits from ORCID input (handles URL or plain id)."""
+    s = (raw or "").strip()
+    # Remove common URL prefix
+    for prefix in ("https://orcid.org/", "http://orcid.org/", "orcid.org/"):
+        if s.lower().startswith(prefix):
+            s = s[len(prefix) :].strip()
+    return "".join(c for c in s if c.isdigit())
+
+
+async def resolve_authority_by_orcid(
+    client: DSpaceClient,
+    vocabulary_name: str,
+    orcid_input: str,
+    auth: DSpaceAuthClient,
+    username: str,
+    password: str,
+    throttle: ThrottleController,
+    max_pages: int = 20,
+) -> Optional[Tuple[str, str]]:
+    """
+    Resolve an ORCID id to a local authority (authority_uuid, display_name).
+    Tries filter_term with ORCID string first; then paginates vocabulary entries
+    and matches by ORCID in entry detail. Returns None if not found.
+    """
+    orcid_digits = _normalize_orcid_input(orcid_input)
+    if not orcid_digits or len(orcid_digits) != 16:
+        return None
+
+    # Try filter_term with ORCID (some vocabularies may support this)
+    try:
+        resp = await _throttled_call(
+            auth,
+            client,
+            username,
+            password,
+            throttle,
+            lambda: client.get_vocabulary_entries(
+                vocabulary_name,
+                filter_term=orcid_digits,
+                exact=False,
+                page=0,
+                size=50,
+            ),
+        )
+        entries = (resp.get("_embedded") or {}).get("entries") or []
+        for e in entries:
+            if not isinstance(e, dict) or not e.get("authority"):
+                continue
+            detail = await fetch_entry_detail(client, vocabulary_name, e.get("authority", ""))
+            extracted = extract_orcid_from_entry(e, detail)
+            if extracted and _normalize_orcid_input(extracted) == orcid_digits:
+                name = (e.get("display") or e.get("value") or "").strip()
+                return (e["authority"], name)
+    except Exception:
+        pass
+
+    # Fallback: paginate with broad filter (first 4 digits of ORCID)
+    for page in range(max_pages):
+        try:
+            resp = await _throttled_call(
+                auth,
+                client,
+                username,
+                password,
+                throttle,
+                lambda p=page: client.get_vocabulary_entries(
+                    vocabulary_name,
+                    filter_term=orcid_digits[:4],
+                    exact=False,
+                    page=p,
+                    size=50,
+                ),
+            )
+        except Exception:
+            break
+        entries = (resp.get("_embedded") or {}).get("entries") or []
+        if not entries:
+            break
+        for e in entries:
+            if not isinstance(e, dict) or not e.get("authority"):
+                continue
+            detail = await fetch_entry_detail(client, vocabulary_name, e.get("authority", ""))
+            extracted = extract_orcid_from_entry(e, detail)
+            if extracted and _normalize_orcid_input(extracted) == orcid_digits:
+                name = (e.get("display") or e.get("value") or "").strip()
+                return (e["authority"], name)
+    return None
+
+
+async def discover_item_uuids_by_author(
+    auth: DSpaceAuthClient,
+    client: DSpaceClient,
+    username: str,
+    password: str,
+    throttle: ThrottleController,
+    author_name: str,
+    page_size: int = 100,
+) -> List[str]:
+    """
+    Discover item UUIDs that have the given author (Discovery API author filter).
+    Uses the documented f.author=<value>,contains filter per search-endpoint.md.
+    """
+    uuids: List[str] = []
+    page = 0
+    while True:
+        results = await _throttled_call(
+            auth,
+            client,
+            username,
+            password,
+            throttle,
+            lambda: client.search_items(
+                query="*",
+                filters={"author": (author_name.strip(), "contains")},
+                sort="dc.date.accessioned,desc",
+                page=page,
+                size=page_size,
+            ),
+        )
+        emb = results.get("_embedded") or {}
+        search_result = emb.get("searchResult") or emb.get("searchResults") or {}
+        objects = (search_result.get("_embedded") or {}).get("objects", [])
+        if not objects:
+            break
+        for obj in objects:
+            indexable = (obj.get("_embedded") or {}).get("indexableObject", {})
+            uuid_val = indexable.get("uuid")
+            if uuid_val:
+                uuids.append(uuid_val)
+        if len(objects) < page_size:
+            break
+        page += 1
+    return uuids
+
+
 async def process_item(
     auth: DSpaceAuthClient,
     client: DSpaceClient,
@@ -414,10 +554,15 @@ async def process_item(
     auto_link_single: bool,
     use_fuzzy: bool,
     log_file: Optional[object],
+    target_authority: Optional[Tuple[str, str]] = None,
+    filter_author_name: Optional[str] = None,
 ) -> Tuple[int, int, int]:
     """
     Process one item: find unlinked authors, match to local authority, optionally prompt, PATCH.
     use_fuzzy: if True, allow abbreviated first names (e.g. "Smith, J." matches "Smith, John").
+    target_authority: if set, (authority_uuid, display_name) to link matching unlinked authors to
+        without vocabulary lookup or prompts; only unlinked authors that fuzzy-match display_name are linked.
+    filter_author_name: if set, only process unlinked authors that fuzzy-match this name (for Name mode without ORCID).
     Returns (linked_count, skipped_user, no_match_count).
     """
     try:
@@ -465,6 +610,55 @@ async def process_item(
             continue
         language = value_obj.get("language")
         normalized = normalize_name(author_value)
+
+        # When filter_author_name is set (Name mode without ORCID), only process authors matching that name
+        if filter_author_name is not None and not fuzzy_match_author(author_value, filter_author_name):
+            continue
+
+        # When target_authority is set (ORCID/Name mode), only link if author fuzzy-matches that authority
+        if target_authority is not None:
+            authority_uuid, authority_display_name = target_authority
+            if not fuzzy_match_author(author_value, authority_display_name):
+                continue
+            # Match: link to the fixed authority without vocabulary lookup or prompts
+            patch_value = {
+                "value": author_value,
+                "language": language,
+                "authority": authority_uuid,
+                "confidence": CONFIDENCE_LINKED,
+            }
+            operations = [
+                {"op": "replace", "path": f"/metadata/{AUTHOR_FIELD}/{idx}", "value": patch_value}
+            ]
+            try:
+                await _throttled_call(
+                    auth,
+                    client,
+                    username,
+                    password,
+                    throttle,
+                    lambda: client.patch_item(item_uuid, operations),
+                )
+                detail = await fetch_entry_detail(client, vocabulary_name, authority_uuid)
+                orcid_url = extract_orcid_from_entry(
+                    {"authority": authority_uuid, "metadata": {}}, detail
+                )
+                orcid_display = orcid_url or ""
+                console.print(f"[green]Linked:[/green] {author_value!r}")
+                linked_count += 1
+                _log(
+                    log_file,
+                    f"LINK item_uuid={item_uuid} title={title!r} uris={uris_str!r} "
+                    f"author={author_value!r} authority={authority_uuid} orcid={orcid_display!r}",
+                )
+            except AuthenticationError as e:
+                console.print(
+                    f"[red]Authentication error during PATCH for item {item_uuid}: {e}[/red]"
+                )
+                raise
+            except Exception as e:
+                console.print(f"[red]PATCH failed: {e}[/red]")
+            continue
 
         try:
             if use_fuzzy:
@@ -773,19 +967,34 @@ async def main() -> None:
     ).strip().lower()
     auto_link_single = review_ans in ("y", "yes")
 
-    # --- 7. Item UUID (optional; empty = all items, newest first) ---
-    item_uuid_input = (
-        sys.argv[1].strip()
-        if len(sys.argv) > 1
-        else console.input(
-            "[bold cyan]Item UUID[/bold cyan] [dim](press Enter to process all items, newest first):[/dim] "
-        ).strip()
+    # --- 7. Mode: Item / Repository / ORCID / Name ---
+    mode_prompt = (
+        "[bold cyan]How would you like to link local authority records to items?[/bold cyan]\n"
+        "[I]tem - you provide a uuid for one specific item, and I try to match as many unlinked authors in the item as possible\n"
+        "[R]epository - I go over a wide range of items in the repository (different selections possible), where I try to match as many unlinked authors in the items in scope as possible.\n"
+        "[O]RCID - You give me one specific ORCID id, for a local authority that already exists, and I try to find unlinked author names based on a range of fuzzy searches for the name of your ORCID author.\n"
+        "[N]ame - You give me a (text) name and I try to find items that have this name, to which we can link an ORCID ID from your local authority cache. Optionally, you can provide a specific ORCID ID that we should be linking to for your search (even when the name is totally different than the name on the ORCID ID).\n"
+        "[dim]Enter I, R, O, or N:[/dim] "
     )
+    while True:
+        mode_input = console.input(mode_prompt).strip().lower()
+        if mode_input in ("i", "item"):
+            run_mode_key = "item"
+            break
+        if mode_input in ("r", "repository"):
+            run_mode_key = "repository"
+            break
+        if mode_input in ("o", "orcid"):
+            run_mode_key = "orcid"
+            break
+        if mode_input in ("n", "name"):
+            run_mode_key = "name"
+            break
+        console.print("[red]Please enter I, R, O, or N.[/red]")
 
-    # --- 8. Incremental run mode (only for repository-wide runs) ---
     run_mode = "force"
     min_age_days: Optional[int] = None
-    if not item_uuid_input:
+    if run_mode_key == "repository":
         mode_input = console.input(
             "[bold cyan]Run mode[/bold cyan] "
             "[dim]([N]ew only, [S]ince days, [F]orce all; press Enter for New only):[/dim] "
@@ -827,29 +1036,37 @@ async def main() -> None:
     total_skipped = 0
     total_no_match = 0
     items_processed = 0
+    fatal_auth = False
 
     try:
-        if item_uuid_input:
-            # Single item – no incremental mode questions, always attempt
-            console.print(f"[cyan]Processing item {item_uuid_input}[/cyan]")
-            linked, skipped, no_match = await process_item(
-                auth,
-                client,
-                username,
-                password,
-                throttle,
-                item_uuid_input,
-                vocabulary_name,
-                auto_link_single,
-                use_fuzzy,
-                log_file,
+        if run_mode_key == "item":
+            item_uuid_input = (
+                sys.argv[1].strip()
+                if len(sys.argv) > 1
+                else console.input("[bold cyan]Item UUID:[/bold cyan] ").strip()
             )
-            total_linked += linked
-            total_skipped += skipped
-            total_no_match += no_match
-            items_processed = 1
-        else:
-            # All items (newest first)
+            if not item_uuid_input:
+                console.print("[yellow]No item UUID provided; skipping.[/yellow]")
+            else:
+                console.print(f"[cyan]Processing item {item_uuid_input}[/cyan]")
+                linked, skipped, no_match = await process_item(
+                    auth,
+                    client,
+                    username,
+                    password,
+                    throttle,
+                    item_uuid_input,
+                    vocabulary_name,
+                    auto_link_single,
+                    use_fuzzy,
+                    log_file,
+                )
+                total_linked += linked
+                total_skipped += skipped
+                total_no_match += no_match
+                items_processed = 1
+
+        elif run_mode_key == "repository":
             console.print("[cyan]Discovering all items (newest first)...[/cyan]")
             uuids = await discover_item_uuids_newest_first(
                 auth, client, username, password, throttle
@@ -881,14 +1098,134 @@ async def main() -> None:
                 items_processed += 1
                 attempt_state[uuid] = now
                 _append_attempt_state(state_path, uuid, now)
+
+        elif run_mode_key == "orcid":
+            orcid_input = console.input(
+                "[bold cyan]ORCID id[/bold cyan] [dim](e.g. 0000-0002-1825-0097 or full URL):[/dim] "
+            ).strip()
+            if not orcid_input:
+                console.print("[yellow]No ORCID provided; skipping.[/yellow]")
+            else:
+                console.print("[dim]Resolving ORCID to local authority...[/dim]")
+                resolved = await resolve_authority_by_orcid(
+                    client,
+                    vocabulary_name,
+                    orcid_input,
+                    auth,
+                    username,
+                    password,
+                    throttle,
+                )
+                if not resolved:
+                    console.print(
+                        "[red]No local authority found for that ORCID. "
+                        "Ensure the authority exists in your vocabulary.[/red]"
+                    )
+                else:
+                    authority_uuid, display_name = resolved
+                    console.print(
+                        f"[green]Resolved to:[/green] {display_name!r} (authority={authority_uuid})"
+                    )
+                    console.print("[cyan]Discovering items by author name...[/cyan]")
+                    uuids = await discover_item_uuids_by_author(
+                        auth, client, username, password, throttle, display_name
+                    )
+                    console.print(
+                        f"[cyan]Found {len(uuids)} item(s) with that author. Processing each.[/cyan]"
+                    )
+                    for i, uuid in enumerate(uuids, 1):
+                        console.print(f"[dim]Item {i}/{len(uuids)}: {uuid}[/dim]")
+                        linked, skipped, no_match = await process_item(
+                            auth,
+                            client,
+                            username,
+                            password,
+                            throttle,
+                            uuid,
+                            vocabulary_name,
+                            auto_link_single,
+                            use_fuzzy,
+                            log_file,
+                            target_authority=(authority_uuid, display_name),
+                        )
+                        total_linked += linked
+                        total_skipped += skipped
+                        total_no_match += no_match
+                        items_processed += 1
+                        attempt_state[uuid] = now
+                        _append_attempt_state(state_path, uuid, now)
+
+        else:  # run_mode_key == "name"
+            name_input = console.input(
+                "[bold cyan]Author name[/bold cyan] [dim](as it may appear in items):[/dim] "
+            ).strip()
+            if not name_input:
+                console.print("[yellow]No name provided; skipping.[/yellow]")
+            else:
+                orcid_opt = console.input(
+                    "[bold cyan]Optional: ORCID id to link to[/bold cyan] [dim](press Enter to skip):[/dim] "
+                ).strip()
+                target_authority: Optional[Tuple[str, str]] = None
+                if orcid_opt:
+                    console.print("[dim]Resolving ORCID to local authority...[/dim]")
+                    resolved = await resolve_authority_by_orcid(
+                        client,
+                        vocabulary_name,
+                        orcid_opt,
+                        auth,
+                        username,
+                        password,
+                        throttle,
+                    )
+                    if resolved:
+                        target_authority = resolved
+                        console.print(
+                            f"[green]Will link to:[/green] {target_authority[1]!r} "
+                            f"(authority={target_authority[0]})"
+                        )
+                    else:
+                        console.print(
+                            "[yellow]No local authority for that ORCID; will match from vocabulary per author.[/yellow]"
+                        )
+
+                console.print("[cyan]Discovering items by author name...[/cyan]")
+                uuids = await discover_item_uuids_by_author(
+                    auth, client, username, password, throttle, name_input
+                )
+                console.print(
+                    f"[cyan]Found {len(uuids)} item(s). Processing each.[/cyan]"
+                )
+                for i, uuid in enumerate(uuids, 1):
+                    console.print(f"[dim]Item {i}/{len(uuids)}: {uuid}[/dim]")
+                    linked, skipped, no_match = await process_item(
+                        auth,
+                        client,
+                        username,
+                        password,
+                        throttle,
+                        uuid,
+                        vocabulary_name,
+                        auto_link_single,
+                        use_fuzzy,
+                        log_file,
+                        target_authority=target_authority,
+                        filter_author_name=name_input if not target_authority else None,
+                    )
+                    total_linked += linked
+                    total_skipped += skipped
+                    total_no_match += no_match
+                    items_processed += 1
+                    attempt_state[uuid] = now
+                    _append_attempt_state(state_path, uuid, now)
     except AuthenticationError as e:
+        fatal_auth = True
         console.print(
             "[red]Fatal authentication error (e.g. CSRF/login refresh failed). "
             "Aborting run.[/red]"
         )
         console.print(f"[dim]{e}[/dim]")
-
-        # --- Summary ---
+    finally:
+        # Summary (normal completion and on auth failure)
         console.print("\n[bold cyan]Summary[/bold cyan]")
         console.print(f"  Items processed: {items_processed}")
         console.print(f"  Linked: {total_linked}")
@@ -900,10 +1237,11 @@ async def main() -> None:
                 log_file,
                 f"SUMMARY items_processed={items_processed} linked={total_linked} skipped={total_skipped} no_match={total_no_match}",
             )
-    finally:
-        if log_file is not None:
             log_file.close()
         await auth.close()
+
+    if fatal_auth:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -87,23 +87,21 @@ class DSpaceAuthClient:
         Raises:
             AuthenticationError: If CSRF token cannot be obtained
         """
+        csrf_url = f"{self.base_url}/server/api/security/csrf"
         try:
             await self._ensure_client()
             
-            # console.print(f"[dim]→ HEAD {self.base_url}/server/api/security/csrf[/dim]")
-            response = await self.client.head(f"{self.base_url}/server/api/security/csrf")
-            
-            # console.print(f"[dim]← Status: {response.status_code}[/dim]")
-            
-            # Extract CSRF token from header
+            # Try HEAD first; some servers/proxies only return dspace-xsrf-token on GET
+            response = await self.client.head(csrf_url)
             csrf_token = response.headers.get("dspace-xsrf-token")
+            if not csrf_token:
+                response = await self.client.get(csrf_url)
+                csrf_token = response.headers.get("dspace-xsrf-token")
             if not csrf_token:
                 console.print("[red]Available headers:[/red]")
                 for key, value in response.headers.items():
                     console.print(f"  {key}: {value}")
                 raise AuthenticationError("CSRF token not found in response headers")
-            
-            # console.print(f"[dim]  CSRF Token (from header): {csrf_token[:20]}...[/dim]")
             
             # Check if server set a cookie (it should be stored in client.cookies)
             # console.print(f"[dim]  Cookies in client jar:[/dim]")

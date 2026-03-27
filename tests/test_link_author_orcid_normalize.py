@@ -101,3 +101,26 @@ def test_extract_orcid_detail_other_information_person(laa):
     }
     url = laa.extract_orcid_from_entry(entry, detail)
     assert laa.normalize_orcid_identifier(url or "") == "0000000168849316"
+
+
+@pytest.mark.parametrize(
+    "item_author,authority_name,expected",
+    [
+        # Item metadata "Given, Family" vs vocabulary "Family, Given"
+        ("Bert, Bogaerts", "Bogaerts, Bert", True),
+        # Symmetric when both use same order
+        ("Bogaerts, Bert", "Bogaerts, Bert", True),
+        ("Bert, Bogaerts", "Bert, Bogaerts", True),
+        # Regression: initials and exact first name (authority = Family, First)
+        ("Smith, J.", "Smith, John", True),
+        ("Smith, John", "Smith, John", True),
+        ("Doe, J. M.", "Doe, Jane Marie", True),
+        # Different people
+        ("Smith, John", "Doe, Jane", False),
+        ("Bert, Bogaerts", "Other, Person", False),
+        # Deduped identical comma parts (single variant)
+        ("Smith, Smith", "Smith, Smith", True),
+    ],
+)
+def test_fuzzy_match_author_name_order_and_regression(laa, item_author, authority_name, expected):
+    assert laa.fuzzy_match_author(item_author, authority_name) is expected

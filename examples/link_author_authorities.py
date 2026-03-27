@@ -191,17 +191,34 @@ def _normalize_initials(s: str) -> str:
     return cleaned
 
 
-def fuzzy_match_author(item_author: str, authority_name: str) -> bool:
+def _item_family_first_variants(item_author: str) -> List[Tuple[str, str]]:
     """
-    Return True if item_author matches authority_name allowing abbreviated first names.
+    (family, first) interpretations for an item author string.
 
-    E.g. "Smith, J." matches "Smith, John"; "Doe, J. M." matches "Doe, Jane Marie".
-    Both must be in "Family, First" form (comma-separated). Family name must match exactly
-    (after normalize); first name matches if item's first is initials and matches
-    authority's first name initials.
+    Comma-separated values try both Family, First (DSpace/Solr style) and First, Family
+    (common in free-text metadata), deduped when identical.
     """
-    item_family, item_first = _parse_family_first(item_author)
-    auth_family, auth_first = _parse_family_first(authority_name)
+    n = normalize_name(item_author)
+    if not n:
+        return []
+    if "," not in n:
+        return [_parse_family_first(item_author)]
+    parts = n.split(",", 1)
+    left, right = normalize_name(parts[0]), normalize_name(parts[1])
+    std = (left, right)
+    swp = (right, left)
+    if std == swp:
+        return [std]
+    return [std, swp]
+
+
+def _match_family_first_parts(
+    item_family: str,
+    item_first: str,
+    auth_family: str,
+    auth_first: str,
+) -> bool:
+    """True if item (family, first) matches authority (family, first); allows initials on item."""
     if not item_family or not auth_family:
         return False
     if item_family.lower() != auth_family.lower():
@@ -212,13 +229,30 @@ def fuzzy_match_author(item_author: str, authority_name: str) -> bool:
         return True  # item has no first name, family match only
     if not auth_first:
         return False
-    # Exact first name match (e.g. "Smith, John" vs "Smith, John")
     if normalize_name(item_first).lower() == normalize_name(auth_first).lower():
         return True
-    # Item first is initials and matches authority first initials (e.g. "Smith, J." vs "Smith, John")
     item_initials = _normalize_initials(item_first)
     auth_initials = _initials(auth_first)
     return item_initials == auth_initials
+
+
+def fuzzy_match_author(item_author: str, authority_name: str) -> bool:
+    """
+    Return True if item_author matches authority_name allowing abbreviated first names.
+
+    E.g. "Smith, J." matches "Smith, John"; "Doe, J. M." matches "Doe, Jane Marie".
+    Authority display names are parsed as Family, First. Item strings with a comma also
+    try First, Family so "Bert, Bogaerts" matches "Bogaerts, Bert". Family name must match
+    exactly (after normalize); first name matches if exact or item's first is initials of
+    authority's given name.
+    """
+    auth_family, auth_first = _parse_family_first(authority_name)
+    if not auth_family:
+        return False
+    for item_family, item_first in _item_family_first_variants(item_author):
+        if _match_family_first_parts(item_family, item_first, auth_family, auth_first):
+            return True
+    return False
 
 
 def get_unlinked_authors(metadata: dict) -> List[Tuple[int, dict]]:
@@ -779,6 +813,17 @@ async def process_item(
         if target_authority is not None:
             authority_uuid, authority_display_name = target_authority
             if not fuzzy_match_author(author_value, authority_display_name):
+                no_match_count += 1
+                console.print(
+                    f"[yellow]Skipped (does not match resolved authority name): {author_value!r} "
+                    f"vs authority display {authority_display_name!r}[/yellow]"
+                )
+                _log(
+                    log_file,
+                    f"SKIP item_uuid={item_uuid} title={title!r} uris={uris_str!r} "
+                    f"author={author_value!r} reason=name_mismatch_with_target_authority "
+                    f"authority_display={authority_display_name!r}",
+                )
                 continue
             # Match: link to the fixed authority without vocabulary lookup or prompts
             patch_value = {

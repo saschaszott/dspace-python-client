@@ -125,7 +125,9 @@ class DSpaceClient:
         self.validator = VersionCompatibility(target_versions)
         self.docs_fetcher = RestContractFetcher()
         self.target_versions = target_versions if isinstance(target_versions, list) else [target_versions]
-        
+        #: Last result of :meth:`detect_dspace_version` (also set when called from ``verify_server_version``).
+        self._last_detected_server_version: Optional[str] = None
+
         # Fetch documentation for target versions (this will be async in real implementation)
         # For now, we'll assume docs are fetched during initialization
         console.print(f"[dim]Initializing DSpace client for versions: {target_versions}[/dim]")
@@ -1360,7 +1362,15 @@ class DSpaceClient:
             ServerVersionMismatchError: If major version mismatch and raise_on_mismatch=True
         """
         from .version import VersionCompatibility
-        
+
+        targets_str = ", ".join(self.target_versions)
+        console.print("[bold cyan]Server version check[/bold cyan]")
+        console.print(
+            f"[dim]Declared target version(s): [white]{targets_str}[/white]. "
+            "Detecting the live server version (may query several REST endpoints; "
+            "this can take a few seconds on slow networks).[/dim]"
+        )
+
         server_version = await self.detect_dspace_version()
         
         if server_version is None:
@@ -1455,6 +1465,15 @@ class DSpaceClient:
                 return self._normalize_version(v)
         return None
 
+    @property
+    def last_detected_server_version(self) -> Optional[str]:
+        """Major.minor string from the last :meth:`detect_dspace_version` run, or ``None``."""
+        return self._last_detected_server_version
+
+    def _set_last_detected_version(self, value: Optional[str]) -> Optional[str]:
+        self._last_detected_server_version = value
+        return value
+
     async def detect_dspace_version(self) -> Optional[str]:
         """
         Detect the actual DSpace server version.
@@ -1462,12 +1481,17 @@ class DSpaceClient:
         Tries in order: (1) GET /api/config/properties/dspace.version (single-property,
         per REST contract; main config/properties returns 405), (2) GET /server/api root
         HAL, (3) GET /actuator/info. Returns major.minor (e.g. 7.6, 9.0) or None.
+
+        Updates :attr:`last_detected_server_version` so callers can reuse the result after
+        :meth:`verify_server_version` without probing the server again.
         """
+        self._last_detected_server_version = None
         headers = self._get_headers(include_csrf=False)
         last_error: Optional[str] = None
 
         # 1. Single-property endpoint (per docs/dspace-rest-api/7.6/configuration.md)
         try:
+            console.print("[dim]  → Probing [white]GET …/config/properties/dspace.version[/white][/dim]")
             url = f"{self.base_url}/server/api/config/properties/dspace.version"
             response = await self.client.get(url, headers=headers)
             if response.status_code == 200:
@@ -1476,9 +1500,12 @@ class DSpaceClient:
                 if values and len(values) > 0 and values[0]:
                     normalized = self._normalize_version(str(values[0]))
                     if normalized:
-                        return normalized
+                        return self._set_last_detected_version(normalized)
             elif response.status_code == 401:
                 try:
+                    console.print(
+                        "[dim]  → Same endpoint without auth (401 from server; retry unauthenticated)…[/dim]"
+                    )
                     async with httpx.AsyncClient(timeout=self.timeout) as unauthenticated_client:
                         r = await unauthenticated_client.get(url)
                         if r.status_code == 200:
@@ -1487,7 +1514,7 @@ class DSpaceClient:
                             if values and len(values) > 0 and values[0]:
                                 normalized = self._normalize_version(str(values[0]))
                                 if normalized:
-                                    return normalized
+                                    return self._set_last_detected_version(normalized)
                 except Exception:
                     pass
             last_error = f"config/properties/dspace.version (status: {response.status_code})"
@@ -1496,13 +1523,14 @@ class DSpaceClient:
 
         # 2. Root API (GET /server/api) – often exposes version in HAL
         try:
+            console.print("[dim]  → Probing [white]GET …/server/api[/white] (root HAL)[/dim]")
             root_url = f"{self.base_url}/server/api"
             response = await self.client.get(root_url, headers=headers)
             if response.status_code == 200:
                 data = response.json()
                 normalized = self._parse_version_from_json(data)
                 if normalized:
-                    return normalized
+                    return self._set_last_detected_version(normalized)
             if not last_error:
                 last_error = f"root API (status: {response.status_code})"
         except Exception as e:
@@ -1511,13 +1539,14 @@ class DSpaceClient:
 
         # 3. Actuator info (admin-only on some setups)
         try:
+            console.print("[dim]  → Probing [white]GET …/actuator/info[/white][/dim]")
             actuator_url = f"{self.base_url}/server/actuator/info"
             response = await self.client.get(actuator_url, headers=headers)
             if response.status_code == 200:
                 data = response.json()
                 normalized = self._parse_version_from_json(data)
                 if normalized:
-                    return normalized
+                    return self._set_last_detected_version(normalized)
             if not last_error:
                 last_error = f"actuator/info (status: {response.status_code})"
         except Exception as e:
@@ -1525,7 +1554,7 @@ class DSpaceClient:
                 last_error = f"actuator/info: {e}"
 
         console.print(f"[dim]Warning: Could not detect server version ({last_error}). Version validation skipped.[/dim]")
-        return None
+        return self._set_last_detected_version(None)
     
     async def get_item_submitter(self, item_uuid: str) -> Optional[dict]:
         """

@@ -512,6 +512,7 @@ class TestDSpaceClient:
         mock_dspace_client.client.get = AsyncMock(return_value=mock_response)
         result = await mock_dspace_client.detect_dspace_version()
         assert result == "7.6"
+        assert mock_dspace_client.last_detected_server_version == "7.6"
         mock_dspace_client.client.get.assert_called()
         first_call_url = mock_dspace_client.client.get.call_args_list[0][0][0]
         assert "config/properties/dspace.version" in first_call_url

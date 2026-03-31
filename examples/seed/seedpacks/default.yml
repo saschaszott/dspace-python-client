@@ -1,0 +1,2144 @@
+version: 2
+description: "Comprehensive seed pack with 200+ scientific publications spanning history to modern AI"
+
+disciplines:
+  - code: PHYS
+    name: Physics
+    subfields:
+      - Classical Mechanics
+      - Electromagnetism
+      - Quantum Mechanics
+      - Thermodynamics
+      - Astrophysics
+      - Particle Physics
+      - Condensed Matter Physics
+      - Optics
+      - Nuclear Physics
+      - Relativity
+  
+  - code: MATH
+    name: Mathematics
+    subfields:
+      - Algebra
+      - Topology
+      - Analysis
+      - Number Theory
+      - Geometry
+      - Mathematical Logic
+      - Applied Mathematics
+      - Statistics
+      - Combinatorics
+      - Differential Equations
+  
+  - code: CS
+    name: Computer Science
+    subfields:
+      - Algorithms
+      - Distributed Systems
+      - Machine Learning
+      - Databases
+      - Computer Graphics
+      - Programming Languages
+      - Computer Networks
+      - Artificial Intelligence
+      - Cybersecurity
+      - Software Engineering
+  
+  - code: BIO
+    name: Biology
+    subfields:
+      - Genetics
+      - Microbiology
+      - Ecology
+      - Biochemistry
+      - Molecular Biology
+      - Evolutionary Biology
+      - Cell Biology
+      - Neuroscience
+      - Immunology
+      - Marine Biology
+  
+  - code: CHEM
+    name: Chemistry
+    subfields:
+      - Organic Chemistry
+      - Physical Chemistry
+      - Analytical Chemistry
+      - Inorganic Chemistry
+      - Theoretical Chemistry
+      - Environmental Chemistry
+      - Polymer Chemistry
+      - Materials Chemistry
+      - Biochemistry
+      - Computational Chemistry
+  
+  - code: MED
+    name: Medicine
+    subfields:
+      - Cardiology
+      - Oncology
+      - Neurology
+      - Immunology
+      - Epidemiology
+      - Pharmacology
+      - Pathology
+      - Radiology
+      - Surgery
+      - Public Health
+  
+  - code: ECON
+    name: Economics
+    subfields:
+      - Microeconomics
+      - Macroeconomics
+      - Econometrics
+      - Behavioral Economics
+      - Development Economics
+      - International Economics
+      - Labor Economics
+      - Financial Economics
+      - Game Theory
+      - Public Economics
+  
+  - code: PSY
+    name: Psychology
+    subfields:
+      - Cognitive Psychology
+      - Developmental Psychology
+      - Social Psychology
+      - Clinical Psychology
+      - Neuropsychology
+      - Behavioral Psychology
+      - Personality Psychology
+      - Industrial Psychology
+      - Educational Psychology
+      - Health Psychology
+  
+  - code: GEO
+    name: Geosciences
+    subfields:
+      - Geology
+      - Geophysics
+      - Oceanography
+      - Meteorology
+      - Climatology
+      - Hydrology
+      - Paleontology
+      - Volcanology
+      - Seismology
+      - Mineralogy
+  
+  - code: ASTR
+    name: Astronomy
+    subfields:
+      - Cosmology
+      - Planetary Science
+      - Stellar Astronomy
+      - Galactic Astronomy
+      - Observational Astronomy
+      - Radio Astronomy
+      - Astrochemistry
+      - Astrobiology
+      - Space Physics
+      - Exoplanet Research
+
+scientists:
+  # Physics - Classical
+  - first: Isaac
+    last: Newton
+    slug: isaac-newton
+  - first: Galileo
+    last: Galilei
+    slug: galileo-galilei
+  - first: Johannes
+    last: Kepler
+    slug: johannes-kepler
+  
+  # Physics - Modern
+  - first: Albert
+    last: Einstein
+    slug: albert-einstein
+  - first: Marie
+    last: Curie
+    slug: marie-curie
+  - first: Niels
+    last: Bohr
+    slug: niels-bohr
+  - first: Richard
+    last: Feynman
+    slug: richard-feynman
+  - first: Enrico
+    last: Fermi
+    slug: enrico-fermi
+  - first: Stephen
+    last: Hawking
+    slug: stephen-hawking
+  - first: Max
+    last: Planck
+    slug: max-planck
+  - first: Werner
+    last: Heisenberg
+    slug: werner-heisenberg
+  - first: Erwin
+    last: Schrödinger
+    slug: erwin-schrodinger
+  - first: Paul
+    last: Dirac
+    slug: paul-dirac
+  
+  # Mathematics
+  - first: Srinivasa
+    last: Ramanujan
+    slug: srinivasa-ramanujan
+  - first: Emmy
+    last: Noether
+    slug: emmy-noether
+  - first: Leonhard
+    last: Euler
+    slug: leonhard-euler
+  - first: Carl
+    last: Gauss
+    slug: carl-gauss
+  - first: Ada
+    last: Lovelace
+    slug: ada-lovelace
+  - first: Sophie
+    last: Germain
+    slug: sophie-germain
+  - first: Bernhard
+    last: Riemann
+    slug: bernhard-riemann
+  - first: Andrew
+    last: Wiles
+    slug: andrew-wiles
+  - first: Pierre
+    last: Fermat
+    slug: pierre-fermat
+  - first: David
+    last: Hilbert
+    slug: david-hilbert
+  
+  # Computer Science - Pioneers
+  - first: Alan
+    last: Turing
+    slug: alan-turing
+  - first: Grace
+    last: Hopper
+    slug: grace-hopper
+  - first: Donald
+    last: Knuth
+    slug: donald-knuth
+  - first: Barbara
+    last: Liskov
+    slug: barbara-liskov
+  - first: Edsger
+    last: Dijkstra
+    slug: edsger-dijkstra
+  - first: John
+    last: McCarthy
+    slug: john-mccarthy
+  - first: Frances
+    last: Allen
+    slug: frances-allen
+  - first: Dennis
+    last: Ritchie
+    slug: dennis-ritchie
+  - first: Ken
+    last: Thompson
+    slug: ken-thompson
+  - first: Tim
+    last: Berners-Lee
+    slug: tim-berners-lee
+  
+  # AI/ML Researchers - Modern
+  - first: Yann
+    last: LeCun
+    slug: yann-lecun
+  - first: Geoffrey
+    last: Hinton
+    slug: geoffrey-hinton
+  - first: Yoshua
+    last: Bengio
+    slug: yoshua-bengio
+  - first: Andrew
+    last: Ng
+    slug: andrew-ng
+  - first: Fei-Fei
+    last: Li
+    slug: fei-fei-li
+  - first: Demis
+    last: Hassabis
+    slug: demis-hassabis
+  - first: Ian
+    last: Goodfellow
+    slug: ian-goodfellow
+  - first: Jürgen
+    last: Schmidhuber
+    slug: jurgen-schmidhuber
+  - first: Michael
+    last: Jordan
+    slug: michael-jordan
+  - first: Judea
+    last: Pearl
+    slug: judea-pearl
+  
+  # Biology
+  - first: Charles
+    last: Darwin
+    slug: charles-darwin
+  - first: Rosalind
+    last: Franklin
+    slug: rosalind-franklin
+  - first: Jane
+    last: Goodall
+    slug: jane-goodall
+  - first: Barbara
+    last: McClintock
+    slug: barbara-mcclintock
+  - first: Gregor
+    last: Mendel
+    slug: gregor-mendel
+  - first: Rachel
+    last: Carson
+    slug: rachel-carson
+  - first: James
+    last: Watson
+    slug: james-watson
+  - first: Francis
+    last: Crick
+    slug: francis-crick
+  - first: Lynn
+    last: Margulis
+    slug: lynn-margulis
+  - first: Edward
+    last: Wilson
+    slug: edward-wilson
+  
+  # Chemistry
+  - first: Linus
+    last: Pauling
+    slug: linus-pauling
+  - first: Dorothy
+    last: Hodgkin
+    slug: dorothy-hodgkin
+  - first: Antoine
+    last: Lavoisier
+    slug: antoine-lavoisier
+  - first: Dmitri
+    last: Mendeleev
+    slug: dmitri-mendeleev
+  - first: Marie
+    last: Lavoisier
+    slug: marie-lavoisier
+  - first: Robert
+    last: Boyle
+    slug: robert-boyle
+  - first: Gertrude
+    last: Elion
+    slug: gertrude-elion
+  
+  # Medicine
+  - first: Alexander
+    last: Fleming
+    slug: alexander-fleming
+  - first: Florence
+    last: Nightingale
+    slug: florence-nightingale
+  - first: Jonas
+    last: Salk
+    slug: jonas-salk
+  - first: Elizabeth
+    last: Blackwell
+    slug: elizabeth-blackwell
+  - first: Louis
+    last: Pasteur
+    slug: louis-pasteur
+  - first: Virginia
+    last: Apgar
+    slug: virginia-apgar
+  
+  # Economics
+  - first: Adam
+    last: Smith
+    slug: adam-smith
+  - first: John
+    last: Keynes
+    slug: john-keynes
+  - first: Elinor
+    last: Ostrom
+    slug: elinor-ostrom
+  - first: Esther
+    last: Duflo
+    slug: esther-duflo
+  - first: Milton
+    last: Friedman
+    slug: milton-friedman
+  - first: Amartya
+    last: Sen
+    slug: amartya-sen
+
+works:
+  # ========== PHYSICS ==========
+  
+  # Classical Mechanics & Early Physics
+  - title: "Mathematical Principles of Natural Philosophy"
+    discipline: PHYS
+    subfield: Classical Mechanics
+    authors:
+      - Newton, Isaac
+  
+  - title: "Dialogue Concerning the Two Chief World Systems"
+    discipline: PHYS
+    subfield: Classical Mechanics
+    authors:
+      - Galilei, Galileo
+  
+  - title: "Astronomia Nova"
+    discipline: PHYS
+    subfield: Classical Mechanics
+    authors:
+      - Kepler, Johannes
+  
+  # Electromagnetism
+  - title: "A Treatise on Electricity and Magnetism"
+    discipline: PHYS
+    subfield: Electromagnetism
+    authors:
+      - Maxwell, James Clerk
+  
+  - title: "On Faraday's Lines of Force"
+    discipline: PHYS
+    subfield: Electromagnetism
+    authors:
+      - Maxwell, James Clerk
+  
+  # Quantum Mechanics
+  - title: "On the Constitution of Atoms and Molecules"
+    discipline: PHYS
+    subfield: Quantum Mechanics
+    authors:
+      - Bohr, Niels
+  
+  - title: "The Quantum Theory of Radiation"
+    discipline: PHYS
+    subfield: Quantum Mechanics
+    authors:
+      - Planck, Max
+  
+  - title: "The Physical Principles of the Quantum Theory"
+    discipline: PHYS
+    subfield: Quantum Mechanics
+    authors:
+      - Heisenberg, Werner
+  
+  - title: "The Principles of Quantum Mechanics"
+    discipline: PHYS
+    subfield: Quantum Mechanics
+    authors:
+      - Dirac, Paul
+  
+  - title: "Quantization as an Eigenvalue Problem"
+    discipline: PHYS
+    subfield: Quantum Mechanics
+    authors:
+      - Schrödinger, Erwin
+  
+  # Relativity
+  - title: "On the Electrodynamics of Moving Bodies"
+    discipline: PHYS
+    subfield: Relativity
+    authors:
+      - Einstein, Albert
+  
+  - title: "The Foundation of the General Theory of Relativity"
+    discipline: PHYS
+    subfield: Relativity
+    authors:
+      - Einstein, Albert
+  
+  - title: "Does the Inertia of a Body Depend Upon Its Energy Content"
+    discipline: PHYS
+    subfield: Relativity
+    authors:
+      - Einstein, Albert
+  
+  # Particle & Nuclear Physics
+  - title: "The Development of the Space-Time View of Quantum Electrodynamics"
+    discipline: PHYS
+    subfield: Particle Physics
+    authors:
+      - Feynman, Richard
+  
+  - title: "Radioactive Substances"
+    discipline: PHYS
+    subfield: Nuclear Physics
+    authors:
+      - Curie, Marie
+  
+  - title: "Artificial Radioactivity Produced by Neutron Bombardment"
+    discipline: PHYS
+    subfield: Nuclear Physics
+    authors:
+      - Fermi, Enrico
+  
+  # Astrophysics & Cosmology
+  - title: "A Brief History of Time"
+    discipline: PHYS
+    subfield: Astrophysics
+    authors:
+      - Hawking, Stephen
+  
+  - title: "Black Holes and Baby Universes"
+    discipline: PHYS
+    subfield: Astrophysics
+    authors:
+      - Hawking, Stephen
+  
+  # ========== MATHEMATICS ==========
+  
+  # Mathematical Logic & Foundations
+  - title: "The Principles of Mathematics"
+    discipline: MATH
+    subfield: Mathematical Logic
+    authors:
+      - Lovelace, Ada
+  
+  - title: "On Computable Numbers"
+    discipline: MATH
+    subfield: Mathematical Logic
+    authors:
+      - Turing, Alan
+  
+  - title: "Grundlagen der Mathematik"
+    discipline: MATH
+    subfield: Mathematical Logic
+    authors:
+      - Hilbert, David
+  
+  # Number Theory
+  - title: "Disquisitiones Arithmeticae"
+    discipline: MATH
+    subfield: Number Theory
+    authors:
+      - Gauss, Carl
+  
+  - title: "Fermat's Last Theorem Proof"
+    discipline: MATH
+    subfield: Number Theory
+    authors:
+      - Wiles, Andrew
+  
+  - title: "Memoir on the Theory of Numbers"
+    discipline: MATH
+    subfield: Number Theory
+    authors:
+      - Germain, Sophie
+  
+  # Analysis & Calculus
+  - title: "Introductio in analysin infinitorum"
+    discipline: MATH
+    subfield: Analysis
+    authors:
+      - Euler, Leonhard
+  
+  - title: "On the Hypotheses Which Lie at the Bases of Geometry"
+    discipline: MATH
+    subfield: Geometry
+    authors:
+      - Riemann, Bernhard
+  
+  # Algebra & Abstract Mathematics
+  - title: "Invariant Variationsprobleme"
+    discipline: MATH
+    subfield: Algebra
+    authors:
+      - Noether, Emmy
+  
+  - title: "Highly Composite Numbers"
+    discipline: MATH
+    subfield: Number Theory
+    authors:
+      - Ramanujan, Srinivasa
+  
+  # ========== COMPUTER SCIENCE - CLASSICS ==========
+  
+  # Algorithms
+  - title: "On Computable Numbers, with an Application to the Entscheidungsproblem"
+    discipline: CS
+    subfield: Algorithms
+    authors:
+      - Turing, Alan
+  
+  - title: "The Art of Computer Programming Volume 1"
+    discipline: CS
+    subfield: Algorithms
+    authors:
+      - Knuth, Donald
+  
+  - title: "A Note on Two Problems in Connexion with Graphs"
+    discipline: CS
+    subfield: Algorithms
+    authors:
+      - Dijkstra, Edsger
+  
+  # Programming Languages
+  - title: "Recursive Functions of Symbolic Expressions"
+    discipline: CS
+    subfield: Programming Languages
+    authors:
+      - McCarthy, John
+  
+  - title: "The Development of the C Programming Language"
+    discipline: CS
+    subfield: Programming Languages
+    authors:
+      - Ritchie, Dennis
+  
+  - title: "Programming with Abstract Data Types"
+    discipline: CS
+    subfield: Programming Languages
+    authors:
+      - Liskov, Barbara
+  
+  - title: "The Education of a Computer"
+    discipline: CS
+    subfield: Programming Languages
+    authors:
+      - Hopper, Grace
+  
+  # Databases
+  - title: "A Relational Model of Data for Large Shared Data Banks"
+    discipline: CS
+    subfield: Databases
+    authors:
+      - Codd, Edgar
+  
+  # Distributed Systems
+  - title: "Time, Clocks, and the Ordering of Events in a Distributed System"
+    discipline: CS
+    subfield: Distributed Systems
+    authors:
+      - Lamport, Leslie
+  
+  - title: "The Byzantine Generals Problem"
+    discipline: CS
+    subfield: Distributed Systems
+    authors:
+      - Lamport, Leslie
+  
+  # Web & Networks
+  - title: "Information Management: A Proposal"
+    discipline: CS
+    subfield: Computer Networks
+    authors:
+      - Berners-Lee, Tim
+  
+  # ========== ARTIFICIAL INTELLIGENCE & MACHINE LEARNING ==========
+  
+  # Deep Learning - Foundational
+  - title: "Learning Representations by Back-Propagating Errors"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Hinton, Geoffrey
+      - Rumelhart, David
+  
+  - title: "Gradient-Based Learning Applied to Document Recognition"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - LeCun, Yann
+      - Bottou, Léon
+      - Bengio, Yoshua
+  
+  - title: "Deep Learning"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Goodfellow, Ian
+      - Bengio, Yoshua
+      - Courville, Aaron
+  
+  - title: "ImageNet Classification with Deep Convolutional Neural Networks"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Krizhevsky, Alex
+      - Sutskever, Ilya
+      - Hinton, Geoffrey
+  
+  - title: "Generative Adversarial Networks"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Goodfellow, Ian
+  
+  # Neural Networks - LSTMs & RNNs
+  - title: "Long Short-Term Memory"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Hochreiter, Sepp
+      - Schmidhuber, Jürgen
+  
+  - title: "Deep Recurrent Neural Networks"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Schmidhuber, Jürgen
+  
+  # Transformers & Attention
+  - title: "Attention Is All You Need"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Vaswani, Ashish
+      - Shazeer, Noam
+  
+  - title: "BERT: Pre-training of Deep Bidirectional Transformers"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Devlin, Jacob
+  
+  - title: "Language Models are Few-Shot Learners"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Brown, Tom
+  
+  # Computer Vision
+  - title: "ImageNet: A Large-Scale Hierarchical Image Database"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Deng, Jia
+      - Li, Fei-Fei
+  
+  - title: "Deep Residual Learning for Image Recognition"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - He, Kaiming
+  
+  - title: "You Only Look Once: Unified Real-Time Object Detection"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Redmon, Joseph
+  
+  # Reinforcement Learning
+  - title: "Playing Atari with Deep Reinforcement Learning"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Mnih, Volodymyr
+      - Hassabis, Demis
+  
+  - title: "Mastering the Game of Go with Deep Neural Networks"
+    discipline: CS
+    subfield: Artificial Intelligence
+    authors:
+      - Silver, David
+      - Hassabis, Demis
+  
+  - title: "Human-Level Control Through Deep Reinforcement Learning"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Mnih, Volodymyr
+  
+  # AI - Classical
+  - title: "A Logical Calculus of Ideas Immanent in Nervous Activity"
+    discipline: CS
+    subfield: Artificial Intelligence
+    authors:
+      - McCulloch, Warren
+      - Pitts, Walter
+  
+  - title: "Computing Machinery and Intelligence"
+    discipline: CS
+    subfield: Artificial Intelligence
+    authors:
+      - Turing, Alan
+  
+  - title: "Some Studies in Machine Learning Using the Game of Checkers"
+    discipline: CS
+    subfield: Artificial Intelligence
+    authors:
+      - Samuel, Arthur
+  
+  - title: "A Proposal for the Dartmouth Summer Research Project"
+    discipline: CS
+    subfield: Artificial Intelligence
+    authors:
+      - McCarthy, John
+  
+  # Probabilistic AI
+  - title: "Probabilistic Reasoning in Intelligent Systems"
+    discipline: CS
+    subfield: Artificial Intelligence
+    authors:
+      - Pearl, Judea
+  
+  - title: "Causality: Models, Reasoning, and Inference"
+    discipline: CS
+    subfield: Artificial Intelligence
+    authors:
+      - Pearl, Judea
+  
+  # ========== BIOLOGY ==========
+  
+  # Evolution
+  - title: "On the Origin of Species"
+    discipline: BIO
+    subfield: Evolutionary Biology
+    authors:
+      - Darwin, Charles
+  
+  - title: "The Descent of Man"
+    discipline: BIO
+    subfield: Evolutionary Biology
+    authors:
+      - Darwin, Charles
+  
+  - title: "Symbiosis in Cell Evolution"
+    discipline: BIO
+    subfield: Evolutionary Biology
+    authors:
+      - Margulis, Lynn
+  
+  # Molecular Biology & Genetics
+  - title: "The Double Helix Structure of DNA"
+    discipline: BIO
+    subfield: Molecular Biology
+    authors:
+      - Franklin, Rosalind
+      - Watson, James
+      - Crick, Francis
+  
+  - title: "Molecular Structure of Nucleic Acids"
+    discipline: BIO
+    subfield: Molecular Biology
+    authors:
+      - Watson, James
+      - Crick, Francis
+  
+  - title: "The Mechanism of Mendelian Heredity"
+    discipline: BIO
+    subfield: Genetics
+    authors:
+      - Mendel, Gregor
+  
+  - title: "The Significance of Responses of the Genome to Challenge"
+    discipline: BIO
+    subfield: Genetics
+    authors:
+      - McClintock, Barbara
+  
+  # Ecology
+  - title: "Silent Spring"
+    discipline: BIO
+    subfield: Ecology
+    authors:
+      - Carson, Rachel
+  
+  - title: "In the Shadow of Man"
+    discipline: BIO
+    subfield: Ecology
+    authors:
+      - Goodall, Jane
+  
+  - title: "The Diversity of Life"
+    discipline: BIO
+    subfield: Ecology
+    authors:
+      - Wilson, Edward
+  
+  - title: "Sociobiology: The New Synthesis"
+    discipline: BIO
+    subfield: Ecology
+    authors:
+      - Wilson, Edward
+  
+  # ========== CHEMISTRY ==========
+  
+  - title: "The Nature of the Chemical Bond"
+    discipline: CHEM
+    subfield: Physical Chemistry
+    authors:
+      - Pauling, Linus
+  
+  - title: "Elements of Chemistry"
+    discipline: CHEM
+    subfield: Analytical Chemistry
+    authors:
+      - Lavoisier, Antoine
+      - Lavoisier, Marie
+  
+  - title: "Periodic Law of the Chemical Elements"
+    discipline: CHEM
+    subfield: Inorganic Chemistry
+    authors:
+      - Mendeleev, Dmitri
+  
+  - title: "X-ray Crystallography of Penicillin"
+    discipline: CHEM
+    subfield: Biochemistry
+    authors:
+      - Hodgkin, Dorothy
+  
+  - title: "The Sceptical Chymist"
+    discipline: CHEM
+    subfield: Analytical Chemistry
+    authors:
+      - Boyle, Robert
+  
+  - title: "Vitamin C and the Common Cold"
+    discipline: CHEM
+    subfield: Biochemistry
+    authors:
+      - Pauling, Linus
+  
+  # ========== MEDICINE ==========
+  
+  - title: "On the Antibacterial Action of Cultures of Penicillium"
+    discipline: MED
+    subfield: Pharmacology
+    authors:
+      - Fleming, Alexander
+  
+  - title: "Notes on Nursing"
+    discipline: MED
+    subfield: Public Health
+    authors:
+      - Nightingale, Florence
+  
+  - title: "Studies on Influenza Immunization"
+    discipline: MED
+    subfield: Immunology
+    authors:
+      - Salk, Jonas
+  
+  - title: "Germ Theory and Its Applications to Medicine"
+    discipline: MED
+    subfield: Pathology
+    authors:
+      - Pasteur, Louis
+  
+  - title: "A Proposal for a New Method of Evaluation of the Newborn Infant"
+    discipline: MED
+    subfield: Public Health
+    authors:
+      - Apgar, Virginia
+  
+  # ========== ECONOMICS ==========
+  
+  - title: "The Wealth of Nations"
+    discipline: ECON
+    subfield: Microeconomics
+    authors:
+      - Smith, Adam
+  
+  - title: "The General Theory of Employment, Interest and Money"
+    discipline: ECON
+    subfield: Macroeconomics
+    authors:
+      - Keynes, John
+  
+  - title: "Governing the Commons"
+    discipline: ECON
+    subfield: Public Economics
+    authors:
+      - Ostrom, Elinor
+  
+  - title: "Development as Freedom"
+    discipline: ECON
+    subfield: Development Economics
+    authors:
+      - Sen, Amartya
+  
+  - title: "Capitalism and Freedom"
+    discipline: ECON
+    subfield: Macroeconomics
+    authors:
+      - Friedman, Milton
+  
+  - title: "Good Economics for Hard Times"
+    discipline: ECON
+    subfield: Development Economics
+    authors:
+      - Duflo, Esther
+  
+  # ========== MORE COMPUTER SCIENCE PAPERS ==========
+  
+  # Operating Systems & Systems
+  - title: "The UNIX Time-Sharing System"
+    discipline: CS
+    subfield: Software Engineering
+    authors:
+      - Ritchie, Dennis
+      - Thompson, Ken
+  
+  - title: "Reflections on Trusting Trust"
+    discipline: CS
+    subfield: Software Engineering
+    authors:
+      - Thompson, Ken
+  
+  # Software Engineering
+  - title: "No Silver Bullet: Essence and Accidents of Software Engineering"
+    discipline: CS
+    subfield: Software Engineering
+    authors:
+      - Brooks, Frederick
+  
+  - title: "The Mythical Man-Month"
+    discipline: CS
+    subfield: Software Engineering
+    authors:
+      - Brooks, Frederick
+  
+  # Compilers
+  - title: "Compilers: Principles, Techniques, and Tools"
+    discipline: CS
+    subfield: Programming Languages
+    authors:
+      - Aho, Alfred
+  
+  # ========== MORE AI/ML PAPERS ==========
+  
+  # Neural Network Architectures
+  - title: "VGGNet: Very Deep Convolutional Networks"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Simonyan, Karen
+      - Zisserman, Andrew
+  
+  - title: "Inception Networks for Computer Vision"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Szegedy, Christian
+  
+  - title: "MobileNets: Efficient Convolutional Neural Networks"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Howard, Andrew
+  
+  # Natural Language Processing
+  - title: "Word2Vec: Efficient Estimation of Word Representations"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Mikolov, Tomas
+  
+  - title: "GloVe: Global Vectors for Word Representation"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Pennington, Jeffrey
+  
+  - title: "ELMo: Deep Contextualized Word Representations"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Peters, Matthew
+  
+  - title: "GPT: Improving Language Understanding by Generative Pre-Training"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Radford, Alec
+  
+  - title: "GPT-3: Language Models are Few-Shot Learners"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Brown, Tom
+  
+  # Sequence Models
+  - title: "Sequence to Sequence Learning with Neural Networks"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Sutskever, Ilya
+  
+  - title: "Neural Machine Translation by Jointly Learning to Align and Translate"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Bahdanau, Dzmitry
+  
+  # Computer Vision - Modern
+  - title: "R-CNN: Rich Feature Hierarchies for Accurate Object Detection"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Girshick, Ross
+  
+  - title: "Faster R-CNN: Towards Real-Time Object Detection"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Ren, Shaoqing
+  
+  - title: "U-Net: Convolutional Networks for Biomedical Image Segmentation"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Ronneberger, Olaf
+  
+  - title: "Mask R-CNN"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - He, Kaiming
+  
+  # GANs & Generative Models
+  - title: "Conditional Generative Adversarial Nets"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Mirza, Mehdi
+      - Goodfellow, Ian
+  
+  - title: "StyleGAN: A Style-Based Generator Architecture"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Karras, Tero
+  
+  - title: "Variational Auto-Encoders"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Kingma, Diederik
+  
+  - title: "Denoising Diffusion Probabilistic Models"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Ho, Jonathan
+  
+  # Optimization & Training
+  - title: "Adam: A Method for Stochastic Optimization"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Kingma, Diederik
+      - Ba, Jimmy
+  
+  - title: "Batch Normalization: Accelerating Deep Network Training"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Ioffe, Sergey
+  
+  - title: "Dropout: A Simple Way to Prevent Neural Networks from Overfitting"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Srivastava, Nitish
+  
+  # Transfer Learning
+  - title: "A Survey on Transfer Learning"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Pan, Sinno
+  
+  - title: "How Transferable are Features in Deep Neural Networks"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Yosinski, Jason
+  
+  # Meta-Learning
+  - title: "Model-Agnostic Meta-Learning for Fast Adaptation"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Finn, Chelsea
+  
+  # AI Safety & Alignment
+  - title: "Concrete Problems in AI Safety"
+    discipline: CS
+    subfield: Artificial Intelligence
+    authors:
+      - Amodei, Dario
+  
+  # Graph Neural Networks
+  - title: "Semi-Supervised Classification with Graph Convolutional Networks"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Kipf, Thomas
+  
+  - title: "Graph Attention Networks"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Veličković, Petar
+  
+  # Self-Supervised Learning
+  - title: "Momentum Contrast for Unsupervised Visual Representation Learning"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - He, Kaiming
+  
+  - title: "SimCLR: A Simple Framework for Contrastive Learning"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Chen, Ting
+  
+  # ========== MORE BIOLOGY ==========
+  
+  - title: "The Central Dogma of Molecular Biology"
+    discipline: BIO
+    subfield: Molecular Biology
+    authors:
+      - Crick, Francis
+  
+  - title: "The Genetic Code"
+    discipline: BIO
+    subfield: Genetics
+    authors:
+      - Crick, Francis
+  
+  - title: "The Chemical Basis of Morphogenesis"
+    discipline: BIO
+    subfield: Biochemistry
+    authors:
+      - Turing, Alan
+  
+  - title: "Cell Theory and Cell Structure"
+    discipline: BIO
+    subfield: Cell Biology
+    authors:
+      - Schwann, Theodor
+  
+  # ========== MORE PHYSICS PAPERS ==========
+  
+  - title: "QED: The Strange Theory of Light and Matter"
+    discipline: PHYS
+    subfield: Quantum Mechanics
+    authors:
+      - Feynman, Richard
+  
+  - title: "Surely You're Joking Mr. Feynman"
+    discipline: PHYS
+    subfield: Particle Physics
+    authors:
+      - Feynman, Richard
+  
+  - title: "The Character of Physical Law"
+    discipline: PHYS
+    subfield: Particle Physics
+    authors:
+      - Feynman, Richard
+  
+  - title: "Thermodynamics and Statistical Mechanics"
+    discipline: PHYS
+    subfield: Thermodynamics
+    authors:
+      - Planck, Max
+  
+  # ========== ADDITIONAL FIELDS ==========
+  
+  # More Math
+  - title: "A Mathematician's Apology"
+    discipline: MATH
+    subfield: Mathematical Logic
+    authors:
+      - Hardy, G. H.
+  
+  - title: "Gödel's Incompleteness Theorems"
+    discipline: MATH
+    subfield: Mathematical Logic
+    authors:
+      - Gödel, Kurt
+  
+  - title: "The Elements"
+    discipline: MATH
+    subfield: Geometry
+    authors:
+      - Euclid
+  
+  # Psychology (some overlap with AI)
+  - title: "Thinking, Fast and Slow"
+    discipline: PSY
+    subfield: Cognitive Psychology
+    authors:
+      - Kahneman, Daniel
+  
+  - title: "The Interpretation of Dreams"
+    discipline: PSY
+    subfield: Clinical Psychology
+    authors:
+      - Freud, Sigmund
+  
+  - title: "Behav Behaviorism"
+    discipline: PSY
+    subfield: Behavioral Psychology
+    authors:
+      - Watson, John
+  
+  # Geosciences
+  - title: "The Structure of Scientific Revolutions"
+    discipline: GEO
+    subfield: Geology
+    authors:
+      - Kuhn, Thomas
+  
+  - title: "Principles of Geology"
+    discipline: GEO
+    subfield: Geology
+    authors:
+      - Lyell, Charles
+  
+  # Astronomy
+  - title: "A Treatise on the System of the World"
+    discipline: ASTR
+    subfield: Cosmology
+    authors:
+      - Hawking, Stephen
+  
+  - title: "The Cosmic Connection"
+    discipline: ASTR
+    subfield: Cosmology
+    authors:
+      - Sagan, Carl
+  
+  - title: "Pale Blue Dot"
+    discipline: ASTR
+    subfield: Planetary Science
+    authors:
+      - Sagan, Carl
+  
+  # ========== MORE AI/ML - MODERN BREAKTHROUGHS ==========
+  
+  # Vision Transformers
+  - title: "An Image is Worth 16x16 Words: Transformers for Image Recognition"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Dosovitskiy, Alexey
+  
+  - title: "Swin Transformer: Hierarchical Vision Transformer"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Liu, Ze
+  
+  # Multimodal Learning
+  - title: "CLIP: Learning Transferable Visual Models From Natural Language"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Radford, Alec
+  
+  - title: "DALL-E: Creating Images from Text"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Ramesh, Aditya
+  
+  - title: "Flamingo: Visual Language Model"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Alayrac, Jean-Baptiste
+  
+  # Foundation Models
+  - title: "On the Opportunities and Risks of Foundation Models"
+    discipline: CS
+    subfield: Artificial Intelligence
+    authors:
+      - Bommasani, Rishi
+  
+  - title: "PaLM: Scaling Language Modeling with Pathways"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Chowdhery, Aakanksha
+  
+  - title: "LLaMA: Open and Efficient Foundation Language Models"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Touvron, Hugo
+  
+  # Efficient Deep Learning
+  - title: "DistilBERT: A Distilled Version of BERT"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Sanh, Victor
+  
+  - title: "LoRA: Low-Rank Adaptation of Large Language Models"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Hu, Edward
+  
+  - title: "Quantization and Training of Neural Networks"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Jacob, Benoit
+  
+  # Explainable AI
+  - title: "SHAP: A Unified Approach to Interpreting Model Predictions"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Lundberg, Scott
+  
+  - title: "LIME: Local Interpretable Model-Agnostic Explanations"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Ribeiro, Marco
+  
+  # Neural Architecture Search
+  - title: "Neural Architecture Search with Reinforcement Learning"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Zoph, Barret
+  
+  - title: "EfficientNet: Rethinking Model Scaling"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Tan, Mingxing
+  
+  # Federated Learning
+  - title: "Communication-Efficient Learning of Deep Networks"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - McMahan, Brendan
+  
+  # ========== MORE BIOLOGY PAPERS ==========
+  
+  - title: "The Selfish Gene"
+    discipline: BIO
+    subfield: Evolutionary Biology
+    authors:
+      - Dawkins, Richard
+  
+  - title: "The Extended Phenotype"
+    discipline: BIO
+    subfield: Evolutionary Biology
+    authors:
+      - Dawkins, Richard
+  
+  - title: "Gaia: A New Look at Life on Earth"
+    discipline: BIO
+    subfield: Ecology
+    authors:
+      - Lovelock, James
+  
+  - title: "The Origin of Eukaryotic Cells"
+    discipline: BIO
+    subfield: Cell Biology
+    authors:
+      - Margulis, Lynn
+  
+  - title: "The Immortal Life of Henrietta Lacks"
+    discipline: BIO
+    subfield: Cell Biology
+    authors:
+      - Skloot, Rebecca
+  
+  - title: "The Emperor of All Maladies"
+    discipline: BIO
+    subfield: Molecular Biology
+    authors:
+      - Mukherjee, Siddhartha
+  
+  - title: "The Gene: An Intimate History"
+    discipline: BIO
+    subfield: Genetics
+    authors:
+      - Mukherjee, Siddhartha
+  
+  - title: "The Eighth Day of Creation"
+    discipline: BIO
+    subfield: Molecular Biology
+    authors:
+      - Judson, Horace
+  
+  # ========== MORE PHYSICS ==========
+  
+  - title: "The Elegant Universe"
+    discipline: PHYS
+    subfield: Particle Physics
+    authors:
+      - Greene, Brian
+  
+  - title: "The Fabric of the Cosmos"
+    discipline: PHYS
+    subfield: Cosmology
+    authors:
+      - Greene, Brian
+  
+  - title: "The Order of Time"
+    discipline: PHYS
+    subfield: Relativity
+    authors:
+      - Rovelli, Carlo
+  
+  - title: "Seven Brief Lessons on Physics"
+    discipline: PHYS
+    subfield: Quantum Mechanics
+    authors:
+      - Rovelli, Carlo
+  
+  - title: "The Feynman Lectures on Physics"
+    discipline: PHYS
+    subfield: Particle Physics
+    authors:
+      - Feynman, Richard
+  
+  # ========== MORE CHEMISTRY ==========
+  
+  - title: "The Periodic Table: Its Story and Its Significance"
+    discipline: CHEM
+    subfield: Inorganic Chemistry
+    authors:
+      - Scerri, Eric
+  
+  - title: "Organic Chemistry"
+    discipline: CHEM
+    subfield: Organic Chemistry
+    authors:
+      - March, Jerry
+  
+  - title: "Physical Chemistry of Surfaces"
+    discipline: CHEM
+    subfield: Physical Chemistry
+    authors:
+      - Adamson, Arthur
+  
+  # ========== MORE MATHEMATICS ==========
+  
+  - title: "What Is Mathematics"
+    discipline: MATH
+    subfield: Mathematical Logic
+    authors:
+      - Courant, Richard
+  
+  - title: "The Man Who Knew Infinity"
+    discipline: MATH
+    subfield: Number Theory
+    authors:
+      - Kanigel, Robert
+  
+  - title: "Fermat's Enigma"
+    discipline: MATH
+    subfield: Number Theory
+    authors:
+      - Singh, Simon
+  
+  - title: "A Beautiful Mind"
+    discipline: MATH
+    subfield: Game Theory
+    authors:
+      - Nasar, Sylvia
+  
+  # ========== MORE COMPUTER SCIENCE ==========
+  
+  # Cryptography
+  - title: "New Directions in Cryptography"
+    discipline: CS
+    subfield: Cybersecurity
+    authors:
+      - Diffie, Whitfield
+      - Hellman, Martin
+  
+  - title: "A Method for Obtaining Digital Signatures"
+    discipline: CS
+    subfield: Cybersecurity
+    authors:
+      - Rivest, Ronald
+      - Shamir, Adi
+      - Adleman, Leonard
+  
+  # Blockchain & Distributed Systems
+  - title: "Bitcoin: A Peer-to-Peer Electronic Cash System"
+    discipline: CS
+    subfield: Distributed Systems
+    authors:
+      - Nakamoto, Satoshi
+  
+  - title: "Ethereum: A Next-Generation Smart Contract Platform"
+    discipline: CS
+    subfield: Distributed Systems
+    authors:
+      - Buterin, Vitalik
+  
+  # Complexity Theory
+  - title: "The Complexity of Theorem-Proving Procedures"
+    discipline: CS
+    subfield: Algorithms
+    authors:
+      - Cook, Stephen
+  
+  - title: "Reducibility Among Combinatorial Problems"
+    discipline: CS
+    subfield: Algorithms
+    authors:
+      - Karp, Richard
+  
+  # Data Structures
+  - title: "A Dichromatic Framework for Balanced Trees"
+    discipline: CS
+    subfield: Algorithms
+    authors:
+      - Guibas, Leonidas
+  
+  - title: "Self-Adjusting Binary Search Trees"
+    discipline: CS
+    subfield: Algorithms
+    authors:
+      - Sleator, Daniel
+      - Tarjan, Robert
+  
+  # ========== MORE MEDICINE ==========
+  
+  - title: "The Structure and Function of Antibodies"
+    discipline: MED
+    subfield: Immunology
+    authors:
+      - Porter, Rodney
+  
+  - title: "The Discovery of Insulin"
+    discipline: MED
+    subfield: Endocrinology
+    authors:
+      - Banting, Frederick
+  
+  - title: "Principles of Internal Medicine"
+    discipline: MED
+    subfield: Public Health
+    authors:
+      - Harrison, Tinsley
+  
+  - title: "The Checklist Manifesto"
+    discipline: MED
+    subfield: Surgery
+    authors:
+      - Gawande, Atul
+  
+  - title: "Being Mortal"
+    discipline: MED
+    subfield: Public Health
+    authors:
+      - Gawande, Atul
+  
+  # ========== MORE ECONOMICS ==========
+  
+  - title: "Theory of Games and Economic Behavior"
+    discipline: ECON
+    subfield: Game Theory
+    authors:
+      - Von Neumann, John
+      - Morgenstern, Oskar
+  
+  - title: "Thinking in Systems"
+    discipline: ECON
+    subfield: Macroeconomics
+    authors:
+      - Meadows, Donella
+  
+  - title: "Freakonomics"
+    discipline: ECON
+    subfield: Behavioral Economics
+    authors:
+      - Levitt, Steven
+      - Dubner, Stephen
+  
+  - title: "Nudge: Improving Decisions"
+    discipline: ECON
+    subfield: Behavioral Economics
+    authors:
+      - Thaler, Richard
+      - Sunstein, Cass
+  
+  - title: "Capital in the Twenty-First Century"
+    discipline: ECON
+    subfield: Macroeconomics
+    authors:
+      - Piketty, Thomas
+  
+  # ========== MORE PSYCHOLOGY ==========
+  
+  - title: "Flow: The Psychology of Optimal Experience"
+    discipline: PSY
+    subfield: Cognitive Psychology
+    authors:
+      - Csikszentmihalyi, Mihaly
+  
+  - title: "The Power of Habit"
+    discipline: PSY
+    subfield: Behavioral Psychology
+    authors:
+      - Duhigg, Charles
+  
+  - title: "Predictably Irrational"
+    discipline: PSY
+    subfield: Behavioral Psychology
+    authors:
+      - Ariely, Dan
+  
+  - title: "Influence: The Psychology of Persuasion"
+    discipline: PSY
+    subfield: Social Psychology
+    authors:
+      - Cialdini, Robert
+  
+  - title: "Man's Search for Meaning"
+    discipline: PSY
+    subfield: Clinical Psychology
+    authors:
+      - Frankl, Viktor
+  
+  # ========== ADDITIONAL AI/ML - RECENT ==========
+  
+  # Multimodal & Vision-Language
+  - title: "ALIGN: Scaling Up Visual and Vision-Language Representation"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Jia, Chao
+  
+  - title: "Florence: A New Foundation Model for Computer Vision"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Yuan, Lu
+  
+  - title: "BLIP: Bootstrapping Language-Image Pre-training"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Li, Junnan
+  
+  # Large Language Models
+  - title: "T5: Exploring Transfer Learning with Unified Text-to-Text Transformer"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Raffel, Colin
+  
+  - title: "Scaling Laws for Neural Language Models"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Kaplan, Jared
+  
+  - title: "Constitutional AI: Harmlessness from AI Feedback"
+    discipline: CS
+    subfield: Artificial Intelligence
+    authors:
+      - Bai, Yuntao
+  
+  - title: "InstructGPT: Training Language Models to Follow Instructions"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Ouyang, Long
+  
+  - title: "Chain-of-Thought Prompting Elicits Reasoning"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Wei, Jason
+  
+  # Efficient Training
+  - title: "Mixed Precision Training"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Micikevicius, Paulius
+  
+  - title: "ZeRO: Memory Optimizations for Training"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Rajbhandari, Samyam
+  
+  - title: "DeepSpeed: System Optimizations for Large-Scale Training"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Rasley, Jeff
+  
+  # Retrieval Augmented Generation
+  - title: "RAG: Retrieval-Augmented Generation for Knowledge-Intensive Tasks"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Lewis, Patrick
+  
+  - title: "REALM: Retrieval-Augmented Language Model Pre-Training"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Guu, Kelvin
+  
+  # Diffusion Models
+  - title: "Denoising Diffusion Implicit Models"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Song, Jiaming
+  
+  - title: "Classifier-Free Diffusion Guidance"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Ho, Jonathan
+  
+  - title: "Stable Diffusion: High-Resolution Image Synthesis"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Rombach, Robin
+  
+  # Audio & Speech
+  - title: "WaveNet: A Generative Model for Raw Audio"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - van den Oord, Aaron
+  
+  - title: "Wav2Vec 2.0: Self-Supervised Learning for Speech"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Baevski, Alexei
+  
+  - title: "Whisper: Robust Speech Recognition"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Radford, Alec
+  
+  # Reinforcement Learning - Advanced
+  - title: "Proximal Policy Optimization Algorithms"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Schulman, John
+  
+  - title: "Soft Actor-Critic: Off-Policy Learning"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Haarnoja, Tuomas
+  
+  - title: "MuZero: Mastering Games Without Knowing the Rules"
+    discipline: CS
+    subfield: Artificial Intelligence
+    authors:
+      - Schrittwieser, Julian
+  
+  # Graph Learning
+  - title: "Graph Neural Networks: A Review"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Zhou, Jie
+  
+  - title: "Message Passing Neural Networks"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Gilmer, Justin
+  
+  # Contrastive Learning
+  - title: "Contrastive Learning of Visual Representations"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Chen, Ting
+  
+  - title: "Bootstrap Your Own Latent"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Grill, Jean-Bastien
+  
+  # Few-Shot Learning
+  - title: "Matching Networks for One Shot Learning"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Vinyals, Oriol
+  
+  - title: "Prototypical Networks for Few-shot Learning"
+    discipline: CS
+    subfield: Machine Learning
+    authors:
+      - Snell, Jake
+  
+  # ========== MORE BIOLOGY & NEUROSCIENCE ==========
+  
+  - title: "Principles of Neural Science"
+    discipline: BIO
+    subfield: Neuroscience
+    authors:
+      - Kandel, Eric
+  
+  - title: "The Man Who Mistook His Wife for a Hat"
+    discipline: BIO
+    subfield: Neuroscience
+    authors:
+      - Sacks, Oliver
+  
+  - title: "Behave: The Biology of Humans"
+    discipline: BIO
+    subfield: Neuroscience
+    authors:
+      - Sapolsky, Robert
+  
+  - title: "The Epigenetics Revolution"
+    discipline: BIO
+    subfield: Genetics
+    authors:
+      - Carey, Nessa
+  
+  - title: "CRISPR: A Crack in Creation"
+    discipline: BIO
+    subfield: Genetics
+    authors:
+      - Doudna, Jennifer
+  
+  - title: "The Sixth Extinction"
+    discipline: BIO
+    subfield: Ecology
+    authors:
+      - Kolbert, Elizabeth
+  
+  # ========== MORE MATHEMATICS ==========
+  
+  - title: "The Riemann Hypothesis"
+    discipline: MATH
+    subfield: Number Theory
+    authors:
+      - Derbyshire, John
+  
+  - title: "Prime Obsession"
+    discipline: MATH
+    subfield: Number Theory
+    authors:
+      - Derbyshire, John
+  
+  - title: "Introduction to Graph Theory"
+    discipline: MATH
+    subfield: Combinatorics
+    authors:
+      - Trudeau, Richard
+  
+  - title: "Topology from a Differentiable Viewpoint"
+    discipline: MATH
+    subfield: Topology
+    authors:
+      - Milnor, John
+  
+  - title: "Linear Algebra Done Right"
+    discipline: MATH
+    subfield: Algebra
+    authors:
+      - Axler, Sheldon
+  
+  # ========== MORE COMPUTER SCIENCE - SYSTEMS ==========
+  
+  - title: "The Design and Implementation of the FreeBSD Operating System"
+    discipline: CS
+    subfield: Software Engineering
+    authors:
+      - McKusick, Marshall
+  
+  - title: "The Google File System"
+    discipline: CS
+    subfield: Distributed Systems
+    authors:
+      - Ghemawat, Sanjay
+  
+  - title: "MapReduce: Simplified Data Processing"
+    discipline: CS
+    subfield: Distributed Systems
+    authors:
+      - Dean, Jeffrey
+      - Ghemawat, Sanjay
+  
+  - title: "Bigtable: A Distributed Storage System"
+    discipline: CS
+    subfield: Databases
+    authors:
+      - Chang, Fay
+  
+  - title: "Dynamo: Amazon's Highly Available Key-Value Store"
+    discipline: CS
+    subfield: Distributed Systems
+    authors:
+      - DeCandia, Giuseppe
+  
+  - title: "Kafka: A Distributed Messaging System"
+    discipline: CS
+    subfield: Distributed Systems
+    authors:
+      - Kreps, Jay
+  
+  - title: "Spark: Cluster Computing with Working Sets"
+    discipline: CS
+    subfield: Distributed Systems
+    authors:
+      - Zaharia, Matei
+  
+  - title: "Kubernetes: Container Orchestration"
+    discipline: CS
+    subfield: Distributed Systems
+    authors:
+      - Burns, Brendan
+  
+  # Programming Languages - More
+  - title: "Structure and Interpretation of Computer Programs"
+    discipline: CS
+    subfield: Programming Languages
+    authors:
+      - Abelson, Harold
+      - Sussman, Gerald
+  
+  - title: "The Design and Evolution of C++"
+    discipline: CS
+    subfield: Programming Languages
+    authors:
+      - Stroustrup, Bjarne
+  
+  - title: "The Java Programming Language"
+    discipline: CS
+    subfield: Programming Languages
+    authors:
+      - Gosling, James
+  
+  - title: "The Python Tutorial"
+    discipline: CS
+    subfield: Programming Languages
+    authors:
+      - van Rossum, Guido
+  
+  # Software Engineering - More
+  - title: "Design Patterns: Elements of Reusable Software"
+    discipline: CS
+    subfield: Software Engineering
+    authors:
+      - Gamma, Erich
+  
+  - title: "Clean Code: A Handbook of Agile Software Craftsmanship"
+    discipline: CS
+    subfield: Software Engineering
+    authors:
+      - Martin, Robert
+  
+  - title: "The Pragmatic Programmer"
+    discipline: CS
+    subfield: Software Engineering
+    authors:
+      - Hunt, Andrew
+      - Thomas, David
+  
+  - title: "Refactoring: Improving the Design of Existing Code"
+    discipline: CS
+    subfield: Software Engineering
+    authors:
+      - Fowler, Martin
+  
+  # ========== MORE ASTRONOMY ==========
+  
+  - title: "Cosmos"
+    discipline: ASTR
+    subfield: Cosmology
+    authors:
+      - Sagan, Carl
+  
+  - title: "A Brief History of Everything"
+    discipline: ASTR
+    subfield: Cosmology
+    authors:
+      - Bryson, Bill
+  
+  - title: "The First Three Minutes"
+    discipline: ASTR
+    subfield: Cosmology
+    authors:
+      - Weinberg, Steven
+  
+  - title: "Astrophysics for People in a Hurry"
+    discipline: ASTR
+    subfield: Astrophysics
+    authors:
+      - Tyson, Neil deGrasse
+  
+  # ========== MORE GEOSCIENCES ==========
+  
+  - title: "The Sixth Extinction"
+    discipline: GEO
+    subfield: Paleontology
+    authors:
+      - Kolbert, Elizabeth
+  
+  - title: "The Map That Changed the World"
+    discipline: GEO
+    subfield: Geology
+    authors:
+      - Winchester, Simon
+  
+  - title: "Krakatoa: The Day the World Exploded"
+    discipline: GEO
+    subfield: Volcanology
+    authors:
+      - Winchester, Simon
+  
+  # ========== INTERDISCIPLINARY ==========
+  
+  - title: "The Structure of Scientific Revolutions"
+    discipline: CS
+    subfield: Artificial Intelligence
+    authors:
+      - Kuhn, Thomas
+  
+  - title: "The Double Helix"
+    discipline: BIO
+    subfield: Molecular Biology
+    authors:
+      - Watson, James
+  
+  - title: "Chaos: Making a New Science"
+    discipline: MATH
+    subfield: Applied Mathematics
+    authors:
+      - Gleick, James
+  
+  - title: "The Information: A History, A Theory, A Flood"
+    discipline: CS
+    subfield: Algorithms
+    authors:
+      - Gleick, James
+
+group_presets:
+  - Readers
+  - Contributors
+  - Curators
+  - Editors
+  - Reviewers
+

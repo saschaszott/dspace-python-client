@@ -171,11 +171,28 @@ dspace-docs list
 
 ## Examples
 
-See the `examples/` directory for comprehensive examples:
+See the `examples/` directory for comprehensive examples.
 
-- **`basic_usage.py`** - Simple CRUD operations
-- **`bulk_import.py`** - Batch operations with concurrency control
+**Install optional deps for seed scenarios** (PyYAML for `examples/seed/`):
+
+```bash
+pip install -e ".[examples]"
+```
+
+### General tutorials
+
+- **`basic_usage.py`** - Short generic CRUD: community, collection, item, bitstream
+- **`bulk_import.py`** - Batch item creation with adaptive concurrency (`BatchItemCreator`)
 - **`advanced_auth.py`** - Session management and error handling
+
+### Seed scenarios (`examples/seed/`)
+
+Inspired by the **dspace-seed** workflow (bundled YAML, no `dspace_seed` package at runtime—only `dspace_client`):
+
+- **`seed/minispace.py`** - Preview, themed content from `seed/seedpacks/default.yml`, optional cascade delete
+- **`seed/megaspace.py`** - Groups, EPeople, collection READ groups, stress items, batch import, view events, optional cleanup
+
+The large file **`examples/seed/seedpacks/default.yml`** is copied from dspace-seed; sync it manually if the upstream pack changes.
 
 ## API Reference
 

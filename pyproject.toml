@@ -36,6 +36,9 @@ dev = [
     "ruff>=0.4.0",
     "mypy>=1.10.0",
 ]
+examples = [
+    "pyyaml>=6.0.1",
+]
 
 [project.urls]
 Homepage = "https://github.com/yourusername/dspace-python-client"

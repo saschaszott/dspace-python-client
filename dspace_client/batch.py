@@ -1,8 +1,9 @@
 """Batch item creation with adaptive concurrency control."""
 
 import asyncio
+import inspect
 import time
-from typing import List, Dict, Optional, Tuple, Any
+from typing import List, Dict, Optional, Tuple, Any, Callable, Union, Awaitable
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 
@@ -42,6 +43,9 @@ class BatchItemCreator:
         item_data: List[Dict[str, Any]],
         progress: Optional[Progress] = None,
         task_id: Optional[int] = None,
+        on_metrics_sample: Optional[
+            Callable[[int, int, PerformanceMetrics], Union[None, Awaitable[None]]]
+        ] = None,
     ) -> Tuple[List[Dict], List[Dict], List[Dict]]:
         """
         Create items in batches with adaptive concurrency.
@@ -55,6 +59,8 @@ class BatchItemCreator:
                 - filename: Optional filename for bitstream
             progress: Rich progress bar (optional)
             task_id: Progress task ID (optional)
+            on_metrics_sample: Optional callback ``(completed, total, metrics)`` invoked whenever
+                progress metrics are logged (every 50 completions and at the end). May be async.
         
         Returns:
             Tuple of (created_items, created_bundles, created_bitstreams)
@@ -109,7 +115,9 @@ class BatchItemCreator:
             
             # Show current metrics
             if completed % 50 == 0 or completed == total_items:
-                await self._show_current_metrics(completed, total_items)
+                await self._show_current_metrics(
+                    completed, total_items, on_metrics_sample=on_metrics_sample
+                )
         
         console.print(f"[green]✓[/green] Batch creation complete: {len(self.created_items)} items created")
         return self.created_items, self.created_bundles, self.created_bitstreams
@@ -175,24 +183,37 @@ class BatchItemCreator:
         
         return result
     
-    async def _show_current_metrics(self, completed: int, total: int):
-        """Show current performance metrics."""
+    async def _show_current_metrics(
+        self,
+        completed: int,
+        total: int,
+        *,
+        on_metrics_sample: Optional[
+            Callable[[int, int, PerformanceMetrics], Union[None, Awaitable[None]]]
+        ] = None,
+    ) -> None:
+        """Show current performance metrics and optionally notify ``on_metrics_sample``."""
         metrics = await self.controller.get_metrics()
-        
+
         # Format metrics
         throughput = f"{metrics.throughput:.1f}" if metrics.throughput > 0 else "0.0"
         p95_latency = f"{metrics.p95_latency * 1000:.0f}ms" if metrics.p95_latency > 0 else "0ms"
         concurrency = metrics.current_concurrency
-        
+
         # Calculate progress percentage
         progress_pct = (completed / total) * 100 if total > 0 else 0
-        
+
         console.print(
             f"\n[dim]Progress: {completed}/{total} ({progress_pct:.1f}%) | "
             f"Concurrency: {concurrency} | "
             f"Throughput: {throughput} items/s | "
             f"p95 Latency: {p95_latency}[/dim]"
         )
+
+        if on_metrics_sample:
+            result = on_metrics_sample(completed, total, metrics)
+            if inspect.isawaitable(result):
+                await result
     
     async def get_final_metrics(self) -> PerformanceMetrics:
         """Get final performance metrics after batch creation."""

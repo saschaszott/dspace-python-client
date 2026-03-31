@@ -1,4 +1,8 @@
-"""Basic DSpace client usage example."""
+"""Basic DSpace client usage example.
+
+For a MiniSpace-style walkthrough (Rich preview, seed-pack titles, optional cleanup), see
+``examples/seed/minispace.py`` (requires ``pip install -e ".[examples]"`` for PyYAML).
+"""
 
 import asyncio
 import getpass

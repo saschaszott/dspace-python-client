@@ -247,9 +247,8 @@ async def main():
         await auth.close()
         return
     
-    # Detect DSpace version to check if submitter information is available
-    console.print("[dim]Detecting DSpace version...[/dim]")
-    detected_version = await client.detect_dspace_version()
+    # Reuse version from verify_server_version (already called detect_dspace_version); avoid duplicate probes
+    detected_version = client.last_detected_server_version
     
     if detected_version and detected_version.startswith("7."):
         console.print("[red]✗[/red] DSpace 7 detected - submitter information is not available via the items API")

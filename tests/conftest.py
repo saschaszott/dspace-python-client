@@ -1,11 +1,26 @@
 """Test configuration and fixtures."""
 
+import os
+
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 import httpx
 
 from dspace_client import DSpaceAuthClient, DSpaceClient
+
+
+@pytest.fixture(autouse=True)
+def _disable_atmire_promo():
+    """Avoid Atmire marketing panels and browser prompts during tests."""
+    key = "DSPACE_CLIENT_DISABLE_ATMIRE_PROMO"
+    previous = os.environ.get(key)
+    os.environ[key] = "1"
+    yield
+    if previous is None:
+        os.environ.pop(key, None)
+    else:
+        os.environ[key] = previous
 
 
 @pytest.fixture

@@ -9,6 +9,7 @@ from typing import Optional
 from rich.console import Console
 
 from .exceptions import AuthenticationError
+from .promo import show_atmire_promo_end
 
 console = Console()
 logger = logging.getLogger(__name__)
@@ -144,9 +145,12 @@ class DSpaceAuthClient:
     
     async def close(self):
         """Close the HTTP client."""
+        had_client = self.client is not None
         if self.client:
             await self.client.aclose()
             self.client = None
+        if had_client:
+            show_atmire_promo_end()
     
     async def verify_server(self) -> bool:
         """

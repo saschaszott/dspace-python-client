@@ -16,7 +16,12 @@ from __future__ import annotations
 
 from typing import Callable, List, Optional, Tuple, Union
 
-from dspace_client import DSpaceAuthClient, DSpaceClient, ServerVersionMismatchError
+from dspace_client import (
+    DSpaceAuthClient,
+    DSpaceClient,
+    ServerVersionMismatchError,
+    show_atmire_promo_start,
+)
 
 from seed_data import DEFAULT_SEED_HTTP_TIMEOUT
 
@@ -57,6 +62,8 @@ async def connect_seed_client(
 
     if strict_versions:
         await client.verify_server_version(raise_on_mismatch=True)
+
+    show_atmire_promo_start()
 
     return auth, client
 

@@ -18,6 +18,14 @@ A comprehensive Python client for the DSpace REST API with version-aware compati
 pip install dspace-client
 ```
 
+## Atmire promotional messages (optional)
+
+The client can show short **Atmire** messages (rotating copy, with **Rich** hyperlinks where the terminal supports them) **after a successful** [`create_validated_client`](dspace_client/__init__.py) flow, and again when you **[`await auth.close()`](dspace_client/auth.py)** on a session that had an open HTTP client. The **[`examples/seed/seed_client.connect_seed_client`](examples/seed/seed_client.py)** helper also shows the session-start message after login.
+
+To **disable** all promotional output and the optional “open atmire.com” prompt, set the environment variable **`DSPACE_CLIENT_DISABLE_ATMIRE_PROMO=1`** (or `true` / `yes`). In **CI** (`CI` set), the browser prompt is skipped automatically.
+
+You can call **`show_atmire_promo_start`** / **`show_atmire_promo_end`** from **`dspace_client`** manually if you build the client without those helpers.
+
 ## Quick Start
 
 ```python

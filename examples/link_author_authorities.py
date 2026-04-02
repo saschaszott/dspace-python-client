@@ -36,11 +36,28 @@ from urllib.parse import urlparse
 from rich.console import Console
 from rich.panel import Panel
 
-from dspace_client import AuthenticationError, DSpaceAPIError, DSpaceAuthClient, DSpaceClient
+from dspace_client import (
+    AuthenticationError,
+    DSpaceAPIError,
+    DSpaceAuthClient,
+    DSpaceClient,
+    show_script_attribution,
+)
 from dspace_client.throttle import ThrottleConfig, ThrottleController
 
 # Compatible with DSpace 7.x, 8.x, 9.x (items PATCH and submission vocabularies)
 TARGET_VERSIONS = ["7.0", "8.0", "9.0"]
+SCRIPT_AUTHORS = "Bram Luyten (Atmire), Wesley Van Dessel (Sciensano)"
+
+_INTRO_TITLE = "Link plain metadata text values to ORCID authorities in your SOLR core"
+_INTRO_BODY = (
+    "This script offers different modes to enrich your DSpace items with links to author ORCID "
+    "authority records that are already in your SOLR authority core. "
+    "As a prerequisite, any authors you want to link must already be present as \"local\" authorities: "
+    "you need to have them already linked in at least one publication. "
+    "The main reason is that searching and matching in your own local authorities has much higher "
+    "accuracy, versus matching to the entire ORCID registry of all researchers worldwide."
+)
 
 # Default vocabulary for local author authority (SOLR cache); may be SolrAuthorAuthority on some instances
 DEFAULT_AUTHORITY_VOCABULARY = "CacheableAuthorAuthority"
@@ -1089,6 +1106,16 @@ async def process_item(
 
 async def main() -> None:
     """Interactive flow: URL and credentials first, then optional review-each, then item UUID or all items."""
+    show_script_attribution(SCRIPT_AUTHORS, console=console)
+
+    console.print(
+        Panel.fit(
+            f"[bold cyan]{_INTRO_TITLE}[/bold cyan]\n\n{_INTRO_BODY}",
+            border_style="cyan",
+        )
+    )
+    console.print()
+
     # --- 1. Base URL ---
     base_url = console.input(
         "[bold cyan]DSpace base URL[/bold cyan] [dim](press Enter for https://demo.dspace.org):[/dim] "

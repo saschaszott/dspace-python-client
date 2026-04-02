@@ -8,7 +8,10 @@ from datetime import datetime
 from typing import List, Dict
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn
-from dspace_client import DSpaceAuthClient, DSpaceClient
+from dspace_client import DSpaceAuthClient, DSpaceClient, show_script_attribution
+
+TARGET_VERSIONS = ["7.0", "8.0", "9.0"]
+SCRIPT_AUTHORS = "Bram Luyten (Atmire)"
 
 console = Console()
 
@@ -43,7 +46,8 @@ def generate_csv_data(items_data: List[Dict]) -> str:
 
 async def main():
     """Extract all items from a specific year."""
-    
+    show_script_attribution(SCRIPT_AUTHORS, console=console)
+
     # Interactive prompt for base URL
     base_url = console.input(
         "[bold cyan]DSpace base URL[/bold cyan] [dim](press Enter for https://demo.dspace.org):[/dim] "
@@ -120,7 +124,7 @@ async def main():
         jwt_token=jwt,
         csrf_token=auth.csrf_token,
         http_client=auth.client,
-        target_versions=["7.0", "8.0", "9.0"],
+        target_versions=TARGET_VERSIONS,
         courtesy_delay=courtesy_delay,
     )
     

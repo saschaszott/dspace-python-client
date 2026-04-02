@@ -31,12 +31,14 @@ from dspace_client import (
     BatchItemCreator,
     ConcurrencyConfig,
     ServerVersionMismatchError,
+    show_script_attribution,
 )
 from dspace_client.concurrency import PerformanceMetrics
 from dspace_client.exceptions import DSpaceAPIError
 
 # DEVELOPER DECLARES: admin-heavy APIs; align with bulk_import
 TARGET_VERSIONS = ["9.0"]
+SCRIPT_AUTHORS = "Bram Luyten (Atmire)"
 SLOW_REQUEST_THRESHOLD_SECONDS = 2.0
 DIAGNOSTICS_SCHEMA_VERSION = "1.0"
 SAMPLE_EVERY_N = 50
@@ -877,6 +879,7 @@ def _print_run_diagnostics(
 
 
 async def main_async(args: argparse.Namespace) -> None:
+    show_script_attribution(SCRIPT_AUTHORS, console=console)
     supported = ", ".join(TARGET_VERSIONS)
     console.print(
         Panel.fit(

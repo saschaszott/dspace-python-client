@@ -7,11 +7,12 @@ from typing import Optional
 
 from rich.console import Console
 
-from dspace_client import create_validated_client, ServerVersionMismatchError
+from dspace_client import create_validated_client, ServerVersionMismatchError, show_script_attribution
 from dspace_client.exceptions import DSpaceAPIError
 
 # DEVELOPER DECLARES: DSpace 7.x (use "7.0" so all 7.y minors match; see dspace_client.version.VersionCompatibility.SUPPORTED_VERSIONS)
 TARGET_VERSIONS = ["7.6"]
+SCRIPT_AUTHORS = "Bram Luyten (Atmire)"
 
 console = Console()
 
@@ -151,6 +152,7 @@ async def verify_gone(
 
 
 async def main() -> None:
+    show_script_attribution(SCRIPT_AUTHORS, console=console)
     console.print("\n[bold cyan]Delete single DSpace item (with verification)[/bold cyan]")
     console.print("[dim]" + "━" * 50 + "[/dim]")
     console.print(

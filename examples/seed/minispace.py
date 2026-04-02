@@ -20,11 +20,12 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from dspace_client import AuthenticationError, ServerVersionMismatchError
+from dspace_client import AuthenticationError, ServerVersionMismatchError, show_script_attribution
 from dspace_client.exceptions import DSpaceAPIError
 
 # DEVELOPER DECLARES: compatible with DSpace 9.0
 TARGET_VERSIONS = ["9.0"]
+SCRIPT_AUTHORS = "Bram Luyten (Atmire)"
 
 _SEED_DIR = Path(__file__).resolve().parent
 if str(_SEED_DIR) not in sys.path:
@@ -252,6 +253,7 @@ async def run_minispace(
 
 
 async def main_async(args: argparse.Namespace) -> None:
+    show_script_attribution(SCRIPT_AUTHORS, console=console)
     seed_pack_path = Path(args.seedpack).resolve()
     supported = ", ".join(TARGET_VERSIONS)
     console.print(

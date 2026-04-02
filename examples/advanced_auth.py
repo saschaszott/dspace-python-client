@@ -3,18 +3,20 @@
 import asyncio
 import getpass
 from rich.console import Console
-from dspace_client import DSpaceAuthClient, DSpaceClient, ServerVersionMismatchError
+from dspace_client import DSpaceAuthClient, DSpaceClient, ServerVersionMismatchError, show_script_attribution
 
 # DEVELOPER DECLARES: This script is compatible with DSpace 8.0 and 9.0
 # Users can only run this script against DSpace servers running these versions
 TARGET_VERSIONS = ["8.0", "9.0"]
+SCRIPT_AUTHORS = "Bram Luyten (Atmire)"
 
 console = Console()
 
 
 async def main():
     """Demonstrate advanced authentication and session management."""
-    
+    show_script_attribution(SCRIPT_AUTHORS, console=console)
+
     # Print script information
     console.print("\n[bold cyan]Advanced Authentication and Session Management Example[/bold cyan]")
     console.print("[dim]━" * 50 + "[/dim]")

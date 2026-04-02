@@ -19,13 +19,19 @@ from dspace_client import (
     RestPDFCountCache,
     create_validated_client,
     ServerVersionMismatchError,
+    show_script_attribution,
 )
+
+# DEVELOPER DECLARES: compatible with DSpace 7.6, 8.0, 9.0 (REST discovery + item bundles)
+TARGET_VERSIONS = ["7.6", "8.0", "9.0"]
+SCRIPT_AUTHORS = "Bram Luyten (Atmire)"
 
 console = Console()
 
 
 async def main():
     """Count items with at least one PDF bitstream and print result."""
+    show_script_attribution(SCRIPT_AUTHORS, console=console)
     console.print("\n[bold cyan]Count items with PDF bitstream (REST, authenticated)[/bold cyan]")
     console.print(
         "[dim]Uses discovery + item bundles/bitstreams. Cache skips known items; "
@@ -90,7 +96,7 @@ async def main():
             base_url=base_url,
             username=username,
             password=password,
-            target_versions=["7.6", "8.0", "9.0"],
+            target_versions=TARGET_VERSIONS,
             slow_request_threshold_seconds=slow_threshold,
             slow_request_callback=on_slow_request,
         )

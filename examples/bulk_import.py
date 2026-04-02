@@ -3,18 +3,26 @@
 import asyncio
 import getpass
 from rich.console import Console
-from dspace_client import create_validated_client, BatchItemCreator, ConcurrencyConfig, ServerVersionMismatchError
+from dspace_client import (
+    BatchItemCreator,
+    ConcurrencyConfig,
+    create_validated_client,
+    ServerVersionMismatchError,
+    show_script_attribution,
+)
 
 # DEVELOPER DECLARES: This script is compatible with DSpace 7.6, 8.0, and 9.0
 # Users can only run this script against DSpace servers running these versions
 TARGET_VERSIONS = ["7.6", "8.0", "9.0"]
+SCRIPT_AUTHORS = "Bram Luyten (Atmire)"
 
 console = Console()
 
 
 async def main():
     """Demonstrate bulk import with adaptive concurrency."""
-    
+    show_script_attribution(SCRIPT_AUTHORS, console=console)
+
     # Print script information
     console.print("\n[bold cyan]Bulk Import Example with Adaptive Concurrency[/bold cyan]")
     console.print("[dim]━" * 50 + "[/dim]")

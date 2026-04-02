@@ -14,29 +14,26 @@ Key Features:
 Example:
     # DEVELOPER DECLARES: This script is compatible with DSpace 8.0 and 9.0
     TARGET_VERSIONS = ["8.0", "9.0"]
+    SCRIPT_AUTHORS = "Bram Luyten (Atmire)"
     
-    from dspace_client import create_validated_client, ServerVersionMismatchError
+    from dspace_client import create_validated_client, ServerVersionMismatchError, show_script_attribution
     
-    # User provides URL at runtime
-    base_url = input("DSpace base URL: ")
-    username = input("Username: ")
-    password = input("Password: ")
-    
-    try:
-        # Authenticate and create client with automatic version validation
-        # Server version is checked against TARGET_VERSIONS
-        auth, client = await create_validated_client(
-            base_url=base_url,
-            username=username,
-            password=password,
-            target_versions=TARGET_VERSIONS  # Developer-declared versions
-        )
-        
-        # Create a community (validated against target versions)
-        community = await client.create_community("My Community")
-    except ServerVersionMismatchError as e:
-        print(f"Cannot connect: {e}")
-        print(f"This script only works with DSpace versions: {', '.join(TARGET_VERSIONS)}")
+    async def main():
+        show_script_attribution(SCRIPT_AUTHORS)
+        base_url = input("DSpace base URL: ")
+        username = input("Username: ")
+        password = input("Password: ")
+        try:
+            auth, client = await create_validated_client(
+                base_url=base_url,
+                username=username,
+                password=password,
+                target_versions=TARGET_VERSIONS,
+            )
+            community = await client.create_community("My Community")
+        except ServerVersionMismatchError as e:
+            print(f"Cannot connect: {e}")
+            print(f"This script only works with DSpace versions: {', '.join(TARGET_VERSIONS)}")
 """
 
 from .auth import DSpaceAuthClient
@@ -45,6 +42,7 @@ from .batch import BatchItemCreator
 from .concurrency import ConcurrencyController, ConcurrencyConfig
 from .oai import OAIClient
 from .rest_pdf_cache import RestPDFCountCache
+from .attribution import show_script_attribution
 from .promo import is_atmire_promo_disabled, show_atmire_promo_end, show_atmire_promo_start
 from typing import Union, List, Tuple
 
@@ -152,6 +150,8 @@ __all__ = [
     "OAIError",
     # Helper functions
     "create_validated_client",
+    # Script attribution
+    "show_script_attribution",
     # Optional Atmire promo (also controlled by DSPACE_CLIENT_DISABLE_ATMIRE_PROMO)
     "show_atmire_promo_start",
     "show_atmire_promo_end",

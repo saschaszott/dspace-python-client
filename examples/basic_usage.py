@@ -7,18 +7,20 @@ For a MiniSpace-style walkthrough (Rich preview, seed-pack titles, optional clea
 import asyncio
 import getpass
 from rich.console import Console
-from dspace_client import create_validated_client, ServerVersionMismatchError
+from dspace_client import create_validated_client, ServerVersionMismatchError, show_script_attribution
 
 # DEVELOPER DECLARES: This script is compatible with DSpace 8.0 and 9.0
 # Users can only run this script against DSpace servers running these versions
 TARGET_VERSIONS = ["8.0", "9.0"]
+SCRIPT_AUTHORS = "Bram Luyten (Atmire)"
 
 console = Console()
 
 
 async def main():
     """Demonstrate basic DSpace client usage."""
-    
+    show_script_attribution(SCRIPT_AUTHORS, console=console)
+
     # Print script information
     console.print("\n[bold cyan]Basic DSpace Client Usage Example[/bold cyan]")
     console.print("[dim]━" * 50 + "[/dim]")

@@ -14,6 +14,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn
 
+from dspace_client import show_script_attribution
 from dspace_client.oai import (
     OAIClient,
     OAIPDFCountCache,
@@ -21,11 +22,14 @@ from dspace_client.oai import (
     iterate_oai_dc_records,
 )
 
+SCRIPT_AUTHORS = "Bram Luyten (Atmire)"
+
 console = Console()
 
 
 async def main() -> None:
     """Harvest OAI oai_dc, count items with dc:format=application/pdf, optionally use cache."""
+    show_script_attribution(SCRIPT_AUTHORS, console=console)
     console.print("\n[bold cyan]Count items with PDF bitstream (OAI-PMH)[/bold cyan]")
     console.print("[dim]Uses ListRecords oai_dc and dc:format. No auth required.[/dim]\n")
 

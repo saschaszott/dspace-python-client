@@ -9,12 +9,13 @@ from datetime import datetime
 from typing import List, Dict, Optional
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn
-from dspace_client import DSpaceAuthClient, DSpaceClient
+from dspace_client import DSpaceAuthClient, DSpaceClient, show_script_attribution
 
 # DEVELOPER DECLARES: This script is compatible with DSpace 9.0 only
 # (Submitter information endpoint only exists in DSpace 9+)
 # Users can only run this script against DSpace servers running version 9.0 or later
 TARGET_VERSIONS = ["9.0"]
+SCRIPT_AUTHORS = "Bram Luyten (Atmire)"
 
 console = Console()
 
@@ -122,7 +123,8 @@ def generate_csv_data(items_data: List[Dict]) -> str:
 
 async def main():
     """Generate recent items report with submitter information."""
-    
+    show_script_attribution(SCRIPT_AUTHORS, console=console)
+
     # Print script information
     console.print("\n[bold cyan]Recent Items Report with Submitter Information[/bold cyan]")
     console.print("[dim]━" * 50 + "[/dim]")

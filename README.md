@@ -164,18 +164,24 @@ The client automatically manages DSpace REST API documentation:
 - **Version-specific branches** from DSpace/RestContract repository
 - **CLI tools** for manual management
 
-**Note:** The `dspace-docs` command is available after installing the package. If using a virtual environment, activate it first (`source venv/bin/activate`).
+**Note:** The `dspace-docs` command is available after installing the package. If using a virtual environment, activate it first (`source venv/bin/activate`). Run these from the **project root** so documentation is stored under `docs/dspace-rest-api/{version}/` (paths are relative to the current working directory).
 
 ```bash
-# Update all documentation
+# First-time (or missing cache): clone the RestContract docs for a given API version
+dspace-docs fetch 9.0
+# Other examples: 7.6, 8.0, bleeding-edge — see `dspace-docs list` for supported labels
+
+# List supported versions and whether each is already present locally
+dspace-docs list
+
+# Refresh every version that is already cached (does not fetch versions you never downloaded)
 dspace-docs update
 
-# Update specific version
-dspace-docs update 9.0
-
-# List available versions
-dspace-docs list
+# Per-version git details and last update time
+dspace-docs status
 ```
+
+If a version was fetched recently, `dspace-docs fetch <version>` may reuse the cache until it is older than 24 hours (same logic as the client’s automatic fetch).
 
 ## Examples
 

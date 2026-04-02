@@ -197,7 +197,10 @@ if incompatible:
 **Note:** The `dspace-docs` command is available after installing the package. If using a virtual environment, activate it first (`source venv/bin/activate`).
 
 ```bash
-# Update documentation manually
+# First-time: download docs for a version (e.g. from project root)
+dspace-docs fetch 9.0
+
+# Update all already-cached versions
 dspace-docs update
 
 # Check documentation status

@@ -1,5 +1,14 @@
 """Count items that have at least one bitstream in PDF format via the REST API.
 
+ANTI-PATTERN WARNING
+--------------------
+Counting items with PDF bitstreams via the REST API is significantly slower and
+less accurate than a direct SQL query against the DSpace database. For any
+non-trivial repository, run SQL against the DSpace DB instead; the authoritative
+counts live there. This example is preserved as a working reference for library
+patterns (paging, caching, slow-request logging), not as a recommended approach
+to this particular problem.
+
 Uses persistent cache (item UUID -> has_pdf) so resumed runs skip already-known items.
 Assumes items are immutable; use "force rerun" to re-check everything.
 Logs slow requests to help identify heavy endpoints.
@@ -12,6 +21,7 @@ import time
 from pathlib import Path
 
 from rich.console import Console
+from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn
 from rich.table import Table
 
@@ -32,6 +42,19 @@ console = Console()
 async def main():
     """Count items with at least one PDF bitstream and print result."""
     show_script_attribution(SCRIPT_AUTHORS, console=console)
+    console.print(
+        Panel(
+            "This script counts items with a PDF bitstream via the REST API.\n"
+            "For any repository of non-trivial size, a direct SQL query against\n"
+            "the DSpace database is dramatically faster and more accurate.\n"
+            "This example is preserved as a reference for library patterns\n"
+            "(paging, caching, slow-request logging), not as the recommended\n"
+            "way to answer this question. Use SQL if you have DB access.",
+            title="Anti-pattern warning",
+            border_style="yellow",
+            padding=(1, 2),
+        )
+    )
     console.print("\n[bold cyan]Count items with PDF bitstream (REST, authenticated)[/bold cyan]")
     console.print(
         "[dim]Uses discovery + item bundles/bitstreams. Cache skips known items; "

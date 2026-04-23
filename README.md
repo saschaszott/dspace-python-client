@@ -9,8 +9,10 @@ A comprehensive Python client for the DSpace REST API with version-aware compati
 - [Installation](#installation)
 - [Running the Examples](#running-the-examples)
   - [General Tutorials](#general-tutorials)
-  - [Seed Scenarios](#seed-scenarios)
-  - [Reporting Scripts](#reporting-scripts)
+  - [Reporting and Data Extraction](#reporting-and-data-extraction)
+  - [Data Modification](#data-modification)
+  - [Larger Workflows (folder-based)](#larger-workflows-folder-based)
+  - [Anti-pattern: counting items with PDF bitstreams](#anti-pattern-counting-items-with-pdf-bitstreams)
 - [Building with the Library](#building-with-the-library)
   - [Getting Started](#getting-started)
   - [Version-First Architecture](#version-first-architecture)
@@ -117,6 +119,8 @@ pip install -e ".[examples]"
 
 All examples follow the same pattern: they prompt for a base URL, username, and password at runtime, and declare which DSpace versions they support. They will refuse to run against a server that does not match.
 
+Each example's `.py` file starts with a docstring describing its purpose, required DSpace version, and usage. Scripts grouped under a folder (`examples/seed/`, `examples/full-text-finder/`) have their own `README.md` with full usage details.
+
 > [!WARNING]
 > Re-read the [Important Safety Notice](#important-safety-notice) before pointing any example at a live repository. The seed scenarios in particular create and optionally delete substantial amounts of content.
 
@@ -126,23 +130,33 @@ All examples follow the same pattern: they prompt for a base URL, username, and 
 - **`bulk_import.py`** - Batch item creation with adaptive concurrency (`BatchItemCreator`)
 - **`advanced_auth.py`** - Session management and error handling
 
-### Seed Scenarios
+### Reporting and Data Extraction
 
-Located under `examples/seed/`. Inspired by the **dspace-seed** workflow (bundled YAML, no `dspace_seed` package at runtime, only `dspace_client`):
+- **`extract_items_by_year.py`** - Export all items from a given publication year to CSV (DSpace 7, 8, 9)
+- **`recent_items_with_submitters.py`** - Recent items plus submitter email, as CSV. DSpace 9+ only (uses a submitter endpoint introduced in 9.0)
+- **`count_items_with_pdf_bitstream.py`** - ⚠️ Anti-pattern; see the [anti-pattern notice](#anti-pattern-counting-items-with-pdf-bitstreams) below
+- **`count_items_with_pdf_bitstream_oai.py`** - ⚠️ Anti-pattern; see the [anti-pattern notice](#anti-pattern-counting-items-with-pdf-bitstreams) below
 
-- **`seed/minispace.py`** - One community → collection → item → bitstream; declares **DSpace 9.0**; **`verify_server_version`** after login **by default** (use **`--skip-version-check`** to skip); optional cascade delete.
-- **`seed/megaspace.py`** - Larger scenario: groups, EPeople, collection READ groups, **mega-metadata** and **mega-bitstreams** stress items, adaptive **`BatchItemCreator`** batch import (the library supports an optional **`on_metrics_sample`** callback on **`create_items_batch`** for time-series metrics), view events, optional cleanup. Requires **at least `--collections 2`** (validated at startup). **MegaSpace** also supports courtesy pacing, slow-request reporting, and optional **JSON/Markdown** diagnostics export; see **`examples/seed/README.md`**.
+### Data Modification
 
-The large file **`examples/seed/seedpacks/default.yml`** is copied from dspace-seed; sync it manually if the upstream pack changes.
+- **`delete_item.py`** - Delete a single item with a retype-to-confirm safeguard (re-type the item's `dc.title`, or `DELETE` if the title is empty). DSpace 7.x
+- **`link_author_authorities.py`** - Interactive linking of free-text author metadata to records already in this repository's local SOLR authority core. Item / Repository / ORCID / Name modes; exact or fuzzy matching; timestamped log files. Does not query the public ORCID registry.
 
-### Reporting Scripts
+### Larger Workflows (folder-based)
 
-Read-only scripts for inspecting a repository:
+- **`examples/full-text-finder/`** - Find open-access PDFs (Unpaywall → OpenAlex → OpenAIRE → CORE) for items with a DOI but no PDF in the ORIGINAL bundle, optionally upload. See **`examples/full-text-finder/README.md`** for setup, modes, and prompts.
+- **`examples/seed/`** - dspace-seed-style scenarios (**MiniSpace**, **MegaSpace**) for filling a repository with communities, collections, items, bitstreams, EPeople, groups, and stats. See **`examples/seed/README.md`**. MiniSpace declares **DSpace 9.0** and runs `verify_server_version` by default. MegaSpace requires `--collections 2` or more and supports the **`on_metrics_sample`** callback on `create_items_batch` for time-series metrics. The large file **`examples/seed/seedpacks/default.yml`** is copied from dspace-seed; sync it manually if the upstream pack changes.
 
-- **`examples/count_items_with_pdf_bitstream.py`** - Counts items with at least one PDF bitstream via the authenticated REST API (includes non-public items). Supports resumable caching.
-- **`examples/count_items_with_pdf_bitstream_oai.py`** - Same count via unauthenticated OAI-PMH harvesting, suitable for very large or slow repositories. Cached in CSV so runs can resume.
+### Anti-pattern: counting items with PDF bitstreams
 
-The underlying library calls used by these scripts are documented in [Recipes](#recipes).
+The two `count_items_with_pdf_bitstream*` scripts are **preserved in this repo as a reference for library patterns** (paging, caching, slow-request logging, OAI-PMH harvesting), not as the recommended way to answer the question "how many items in this repository have a PDF?".
+
+For any non-trivial repository:
+
+- A direct SQL query against the DSpace database is dramatically **faster** (seconds vs. hours on large repos) and **more accurate**.
+- Walking the REST API or OAI-PMH feed puts avoidable load on the server and still produces an approximation.
+
+Use the scripts only if you do not have DB access and are prepared to accept the runtime cost. The same caveat applies to the REST and OAI code snippets in the [Recipes](#recipes) section below.
 
 ## Building with the Library
 
@@ -324,6 +338,9 @@ await client.add_subgroup_to_group(parent_group_uuid, subgroup_uuid)
 ```
 
 ### Recipes
+
+> [!WARNING]
+> Both recipes below count items with a PDF bitstream via the DSpace REST/OAI interfaces. For any non-trivial repository this is an **anti-pattern**: a direct SQL query against the DSpace database is dramatically faster and more accurate. These snippets are kept here as references for paging, caching, and slow-request logging. See [Anti-pattern: counting items with PDF bitstreams](#anti-pattern-counting-items-with-pdf-bitstreams) for context.
 
 #### Counting items with PDF bitstreams (REST, includes non-public items)
 

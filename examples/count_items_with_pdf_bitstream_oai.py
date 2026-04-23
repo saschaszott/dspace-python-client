@@ -1,5 +1,14 @@
 """Count items with at least one PDF bitstream via OAI-PMH (dc:format).
 
+ANTI-PATTERN WARNING
+--------------------
+Counting items with PDF bitstreams via OAI-PMH is significantly slower and less
+accurate than a direct SQL query against the DSpace database. For any non-trivial
+repository, run SQL against the DSpace DB instead; the authoritative counts live
+there. This example is preserved as a working reference for OAI-PMH harvesting
+patterns (CSV caching, incremental `from=` harvests), not as a recommended
+approach to this particular problem.
+
 Uses the repository's OAI endpoint at {base_url}/server/oai/request. No authentication
 required. Infers PDF from <dc:format>application/pdf</dc:format> in oai_dc metadata.
 Supports a persistent CSV cache so resumed runs skip already-seen items and optional
@@ -12,6 +21,7 @@ import time
 from pathlib import Path
 
 from rich.console import Console
+from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn
 
 from dspace_client import show_script_attribution
@@ -30,6 +40,19 @@ console = Console()
 async def main() -> None:
     """Harvest OAI oai_dc, count items with dc:format=application/pdf, optionally use cache."""
     show_script_attribution(SCRIPT_AUTHORS, console=console)
+    console.print(
+        Panel(
+            "This script counts items with a PDF bitstream via OAI-PMH harvesting.\n"
+            "For any repository of non-trivial size, a direct SQL query against\n"
+            "the DSpace database is dramatically faster and more accurate.\n"
+            "This example is preserved as a reference for OAI-PMH harvesting\n"
+            "patterns, not as the recommended way to answer this question.\n"
+            "Use SQL if you have DB access.",
+            title="Anti-pattern warning",
+            border_style="yellow",
+            padding=(1, 2),
+        )
+    )
     console.print("\n[bold cyan]Count items with PDF bitstream (OAI-PMH)[/bold cyan]")
     console.print("[dim]Uses ListRecords oai_dc and dc:format. No auth required.[/dim]\n")
 

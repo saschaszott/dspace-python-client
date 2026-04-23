@@ -7,7 +7,7 @@ Get up and running with the DSpace Python client in 5 minutes.
 > [!WARNING]
 > This client is **not yet published to PyPI**. The name `dspace-client` on PyPI currently belongs to an unrelated project, so `pip install dspace-client` will install the wrong package. Install from source instead.
 
-**Prerequisites:** Python 3.11+ and Git. Git is also used at runtime to fetch the DSpace REST API docs, so it must be available on your system PATH.
+**Prerequisites:** Python 3.11+, Git (also used at runtime to fetch the DSpace REST API docs, so it must be on your system PATH), and pip 21.3 or newer (required by `pip install -e .`).
 
 Get the code either by cloning:
 
@@ -21,8 +21,11 @@ or by unpacking a zip archive of the project and `cd`-ing into the unpacked fold
 ```bash
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install --upgrade pip   # ensures pip >= 21.3 for the editable install below
 pip install -e .
 ```
+
+If `pip install -e .` fails with a confusing error, the most common cause is an old pip; re-run `pip install --upgrade pip` inside the activated venv and try again.
 
 ## Basic Usage
 

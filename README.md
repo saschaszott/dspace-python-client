@@ -74,7 +74,7 @@ These two rules apply equally to the bundled examples, your own scripts, and any
 
 - **Python 3.11 or higher** (check with `python3 --version`)
 - **Git** - also required at runtime, because the client automatically fetches the DSpace REST API docs from GitHub using `git`
-- **pip** (bundled with most Python installations)
+- **pip 21.3 or newer** (bundled with recent Python releases). `pip install -e .` uses PEP 660 editable installs, which need at least pip 21.3. If you hit errors during the install step below, run `pip install --upgrade pip` inside the activated venv and retry.
 
 ### Getting the code
 
@@ -97,11 +97,12 @@ cd path/to/dspace-python-client
 
 ### Installing
 
-From inside the project folder, create a virtual environment and install the client:
+From inside the project folder, create a virtual environment, upgrade pip (to satisfy the 21.3+ requirement), and install the client:
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install --upgrade pip
 pip install -e .
 ```
 
@@ -466,6 +467,9 @@ cd dspace-python-client
 # Create and activate virtual environment
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Upgrade pip (pip install -e . requires pip >= 21.3)
+pip install --upgrade pip
 
 # Install dependencies
 pip install -r requirements.txt

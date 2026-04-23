@@ -1,0 +1,19 @@
+{
+  "community": {
+    "name": "Publications"
+  },
+  "collection": {
+    "name": "Publication Pages"
+  },
+  "item": {
+    "name": "Example Publication Page",
+    "metadata": {
+      "dc.title": "Example Publication Page",
+      "dc.contributor.author": [
+        "Jane Doe",
+        "John Doe"
+      ],
+      "dc.description": "Example publication page created by dspace-python-client."
+    }
+  }
+}

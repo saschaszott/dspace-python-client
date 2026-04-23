@@ -4,8 +4,15 @@ Get up and running with the DSpace Python client in 5 minutes.
 
 ## Installation
 
+> [!WARNING]
+> This client is **not yet published to PyPI**. The name `dspace-client` on PyPI currently belongs to an unrelated project, so `pip install dspace-client` will install the wrong package. Install from source instead:
+
 ```bash
-pip install dspace-client
+git clone https://git.atmire.com/scripts/dspace-python-client.git
+cd dspace-python-client
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -e .
 ```
 
 ## Basic Usage

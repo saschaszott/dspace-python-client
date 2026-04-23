@@ -65,11 +65,18 @@ These two rules apply equally to the bundled examples, your own scripts, and any
 
 ## Installation
 
+> [!WARNING]
+> This client is **not yet published to PyPI**. The name `dspace-client` on PyPI currently belongs to an unrelated project, so `pip install dspace-client` will install the wrong package. Install from source instead.
+
 ```bash
-pip install dspace-client
+git clone https://git.atmire.com/scripts/dspace-python-client.git
+cd dspace-python-client
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -e .
 ```
 
-For full installation details, including source checkouts and virtual environments, see [Contributing → Installation from Source](#installation-from-source).
+For optional dependencies (seed scenarios, dev tools) and more detail, see [Contributing → Installation from Source](#installation-from-source).
 
 ## Running the Examples
 
@@ -409,7 +416,7 @@ except AuthenticationError as e:
 ### Installation from Source
 
 ```bash
-git clone https://github.com/yourusername/dspace-python-client.git
+git clone https://git.atmire.com/scripts/dspace-python-client.git
 cd dspace-python-client
 
 # Create and activate virtual environment

@@ -58,6 +58,9 @@ async def create_validated_client(
     username: str,
     password: str,
     target_versions: Union[str, List[str]] = "bleeding-edge",
+    *,
+    show_atmire_promo: bool = False,
+    fetch_docs: bool = False,
     **client_kwargs
 ) -> Tuple[DSpaceAuthClient, DSpaceClient]:
     """
@@ -80,6 +83,8 @@ async def create_validated_client(
                         Defaults to "bleeding-edge".
         **client_kwargs: Additional keyword arguments passed to DSpaceClient constructor
                         (timeout, max_retries, courtesy_delay, etc.)
+        show_atmire_promo: When True, show optional Atmire thank-you panels at session start/end.
+        fetch_docs: When True, fetch RestContract documentation for each target version.
     
     Returns:
         Tuple of (auth_client, dspace_client)
@@ -102,24 +107,29 @@ async def create_validated_client(
         # If major version mismatch, ServerVersionMismatchError is raised
         # If minor version difference, warning is printed but connection proceeds
     """
-    # Authenticate
-    auth = DSpaceAuthClient(base_url, timeout=client_kwargs.get("timeout", 30.0))
+    timeout = client_kwargs.pop("timeout", 30.0)
+    auth = DSpaceAuthClient(base_url, timeout=timeout)
     jwt, status = await auth.authenticate(username, password)
     
-    # Create client
     client = DSpaceClient(
         base_url=base_url,
         jwt_token=jwt,
         csrf_token=auth.csrf_token,
         http_client=auth.client,
         target_versions=target_versions,
-        **{k: v for k, v in client_kwargs.items() if k != "timeout"}
+        timeout=timeout,
+        **client_kwargs,
     )
     
-    # Verify server version (will raise ServerVersionMismatchError on major mismatch)
     await client.verify_server_version(raise_on_mismatch=True)
 
-    show_atmire_promo_start()
+    if fetch_docs:
+        versions = [target_versions] if isinstance(target_versions, str) else list(target_versions)
+        for version in versions:
+            await client.docs_fetcher.fetch_version(version)
+
+    if show_atmire_promo:
+        show_atmire_promo_start()
 
     return auth, client
 

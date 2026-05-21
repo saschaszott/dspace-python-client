@@ -6,9 +6,11 @@ The OAI endpoint is at {base_url}/server/oai/request. No authentication is requi
 import csv
 import hashlib
 import json
+import os
 import re
 import urllib.parse
 import xml.etree.ElementTree as ET
+from defusedxml.ElementTree import fromstring as safe_fromstring
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, AsyncIterator, Dict, List, Optional, Tuple, TypedDict
@@ -236,7 +238,7 @@ class OAIClient:
         client = await self._get_client()
         response = await client.get(url)
         response.raise_for_status()
-        root = ET.fromstring(response.text)
+        root = safe_fromstring(response.text)
         return root
 
     async def identify(self) -> IdentifyResult:
@@ -466,11 +468,12 @@ class OAIPDFCountCache:
         self._data[identifier] = {"datestamp": datestamp, "has_pdf": has_pdf}
 
     def save(self, last_until: Optional[str] = None) -> None:
-        """Write cache CSV and optionally update last_until in JSON sidecar."""
+        """Write cache CSV and optionally update last_until in JSON sidecar atomically."""
         self._ensure_dir()
         if last_until is not None:
             self._last_until = last_until
-        with open(self._cache_path, "w", newline="", encoding="utf-8") as f:
+        tmp_csv = self._cache_path.with_suffix(".csv.tmp")
+        with open(tmp_csv, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=["identifier", "datestamp", "has_pdf"])
             writer.writeheader()
             for ident, entry in self._data.items():
@@ -479,9 +482,12 @@ class OAIPDFCountCache:
                     "datestamp": entry["datestamp"],
                     "has_pdf": "1" if entry["has_pdf"] else "0",
                 })
+        os.replace(tmp_csv, self._cache_path)
         if self._last_until is not None:
-            with open(self._last_until_path, "w", encoding="utf-8") as f:
+            tmp_json = self._last_until_path.with_suffix(".json.tmp")
+            with open(tmp_json, "w", encoding="utf-8") as f:
                 json.dump({"last_until": self._last_until}, f, indent=0)
+            os.replace(tmp_json, self._last_until_path)
 
     def totals(self) -> Tuple[int, int]:
         """Return (total_count, with_pdf_count) from current in-memory cache."""

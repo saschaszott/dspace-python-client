@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass
 from typing import List, Dict, Optional, Union, Tuple
 from .exceptions import VersionIncompatibilityError
+from .versions import SUPPORTED_VERSIONS as _SUPPORTED_VERSIONS
 
 
 def _extract_major_minor(version_str: str) -> Optional[str]:
@@ -62,15 +63,8 @@ class VersionCompatibility:
     CRITICAL: Every API call is validated before execution.
     """
     
-    # Supported DSpace versions (keys are valid target_versions; project has 7.6 REST contract in docs/dspace-rest-api/7.6/)
-    SUPPORTED_VERSIONS = {
-        "bleeding-edge": ["bleeding-edge"],  # Latest development
-        "7.0": ["7.0", "7.1", "7.2", "7.3", "7.4", "7.5", "7.6"],
-        "7.6": ["7.6"],  # DSpace 7.6
-        "8.0": ["8.0"],
-        "9.0": ["9.0"],
-    }
-    
+    SUPPORTED_VERSIONS = _SUPPORTED_VERSIONS
+
     # Method compatibility matrix
     # Each method lists the minimum version that supports it
     COMPATIBILITY = {

@@ -5,6 +5,7 @@ has a PDF, we trust that until a forced rerun. One CSV per repository.
 """
 
 import csv
+import os
 import hashlib
 import re
 from pathlib import Path
@@ -88,15 +89,17 @@ class RestPDFCountCache:
         self._data[item_uuid] = has_pdf
 
     def save(self) -> None:
-        """Write cache to CSV."""
+        """Write cache to CSV atomically."""
         self._ensure_dir()
-        with open(self._cache_path, "w", newline="", encoding="utf-8") as f:
+        tmp_path = self._cache_path.with_suffix(".csv.tmp")
+        with open(tmp_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=["item_uuid", "has_pdf"])
             writer.writeheader()
             for uid, has_pdf in self._data.items():
                 writer.writerow(
                     {"item_uuid": uid, "has_pdf": "1" if has_pdf else "0"}
                 )
+        os.replace(tmp_path, self._cache_path)
 
     def totals(self) -> Tuple[int, int]:
         """Return (total_count, with_pdf_count) from current in-memory cache."""

@@ -467,5 +467,5 @@ class DSpaceAuthClient:
             status = response.json()
             return status.get("authenticated", False)
         
-        except (httpx.RequestError, Exception):
+        except (httpx.RequestError, ValueError, KeyError):
             return False

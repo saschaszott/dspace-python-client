@@ -107,17 +107,12 @@ class DSpaceClient:
                 logged at WARNING and optional callback is invoked (default 5.0).
             slow_request_callback: Optional callback(method, endpoint, duration_seconds)
                 for slow requests; use to collect or display slow-request patterns.
+
+        RestContract documentation is not fetched during ``__init__``. Call
+        ``await client.docs_fetcher.fetch_version(...)`` explicitly, or pass
+        ``fetch_docs=True`` to :func:`create_validated_client`.
         
-        On initialization:
-        1. Validates target_versions parameter
-        2. Checks if git repos exist for target version(s)
-        3. If not cloned, git clone RestContract repository
-        4. If exists, git fetch latest changes (if older than 24h)
-        5. Checkout correct branch/tag for each version
-        6. Loads compatibility rules for validation
-        7. Sets up automatic update checking
-        
-        Note: Version validation is NOT performed during __init__. Call
+        Note: Server version validation is NOT performed during ``__init__``. Call
         verify_server_version() after initialization, or use the
         create_validated_client() helper function.
         """
@@ -139,8 +134,6 @@ class DSpaceClient:
         #: Last result of :meth:`detect_dspace_version` (also set when called from ``verify_server_version``).
         self._last_detected_server_version: Optional[str] = None
 
-        # Fetch documentation for target versions (this will be async in real implementation)
-        # For now, we'll assume docs are fetched during initialization
         console.print(f"[dim]Initializing DSpace client for versions: {target_versions}[/dim]")
     
     def _get_headers(self, include_csrf: bool = False) -> dict[str, str]:
@@ -245,12 +238,13 @@ class DSpaceClient:
                     except (ValueError, orjson.JSONDecodeError, TypeError):
                         pass
 
-                    console.print(f"[red]Error response:[/red]")
-                    console.print(f"[red]  Status: {response.status_code}[/red]")
-                    console.print(f"[red]  Response headers:[/red]")
-                    for key, value in response.headers.items():
-                        console.print(f"[red]    {key}: {value}[/red]")
-                    console.print(f"[red]  Body: {error_detail[:500]}[/red]")
+                    logger.warning(
+                        "Request failed: %s %s status=%s body_preview=%r",
+                        method,
+                        endpoint,
+                        response.status_code,
+                        error_detail[:500],
+                    )
 
                     raise DSpaceAPIError(
                         f"{method} {url} failed with status {response.status_code}: {error_detail}",
@@ -1370,8 +1364,10 @@ class DSpaceClient:
                 method_name="get_vocabulary_entry_detail",
             )
             return response.json()
-        except Exception:
-            return None
+        except DSpaceAPIError as e:
+            if e.status_code == 404:
+                return None
+            raise
 
     async def get_eperson(self, uuid: str) -> dict:
         """Get EPerson details by UUID."""
@@ -1512,6 +1508,27 @@ class DSpaceClient:
         self._last_detected_server_version = value
         return value
 
+    async def _probe_version_endpoint(
+        self,
+        label: str,
+        url: str,
+        parser: Callable[[httpx.Response], Optional[str]],
+        *,
+        headers: dict[str, str],
+        last_error: Optional[str],
+    ) -> tuple[Optional[str], Optional[str]]:
+        """Probe a URL for a DSpace version string. Returns (version, last_error)."""
+        try:
+            console.print(f"[dim]  → Probing [white]{label}[/white][/dim]")
+            response = await self.client.get(url, headers=headers)
+            if response.status_code == 200:
+                normalized = parser(response)
+                if normalized:
+                    return self._set_last_detected_version(normalized), last_error
+            return None, last_error or f"{label} (status: {response.status_code})"
+        except (httpx.RequestError, ValueError, KeyError, orjson.JSONDecodeError) as e:
+            return None, last_error or f"{label}: {e}"
+
     async def detect_dspace_version(self) -> Optional[str]:
         """
         Detect the actual DSpace server version.
@@ -1527,69 +1544,60 @@ class DSpaceClient:
         headers = self._get_headers(include_csrf=False)
         last_error: Optional[str] = None
 
-        # 1. Single-property endpoint (per docs/dspace-rest-api/7.6/configuration.md)
-        try:
-            console.print("[dim]  → Probing [white]GET …/config/properties/dspace.version[/white][/dim]")
-            url = f"{self.base_url}/server/api/config/properties/dspace.version"
-            response = await self.client.get(url, headers=headers)
-            if response.status_code == 200:
-                data = response.json()
-                values = data.get("values") if isinstance(data, dict) else None
-                if values and len(values) > 0 and values[0]:
-                    normalized = self._normalize_version(str(values[0]))
-                    if normalized:
-                        return self._set_last_detected_version(normalized)
-            elif response.status_code == 401:
-                try:
-                    console.print(
-                        "[dim]  → Same endpoint without auth (401 from server; retry unauthenticated)…[/dim]"
-                    )
-                    async with httpx.AsyncClient(timeout=self.timeout) as unauthenticated_client:
-                        r = await unauthenticated_client.get(url)
-                        if r.status_code == 200:
-                            data = r.json()
-                            values = data.get("values") if isinstance(data, dict) else None
-                            if values and len(values) > 0 and values[0]:
-                                normalized = self._normalize_version(str(values[0]))
-                                if normalized:
-                                    return self._set_last_detected_version(normalized)
-                except Exception:
-                    pass
-            last_error = f"config/properties/dspace.version (status: {response.status_code})"
-        except Exception as e:
-            last_error = f"config/properties/dspace.version: {e}"
+        def _parse_config_property(response: httpx.Response) -> Optional[str]:
+            data = response.json()
+            values = data.get("values") if isinstance(data, dict) else None
+            if values and len(values) > 0 and values[0]:
+                return self._normalize_version(str(values[0]))
+            return None
 
-        # 2. Root API (GET /server/api) – often exposes version in HAL
-        try:
-            console.print("[dim]  → Probing [white]GET …/server/api[/white] (root HAL)[/dim]")
-            root_url = f"{self.base_url}/server/api"
-            response = await self.client.get(root_url, headers=headers)
-            if response.status_code == 200:
-                data = response.json()
-                normalized = self._parse_version_from_json(data)
-                if normalized:
-                    return self._set_last_detected_version(normalized)
-            if not last_error:
-                last_error = f"root API (status: {response.status_code})"
-        except Exception as e:
-            if not last_error:
-                last_error = f"root API: {e}"
+        config_url = f"{self.base_url}/server/api/config/properties/dspace.version"
+        version, last_error = await self._probe_version_endpoint(
+            "GET …/config/properties/dspace.version",
+            config_url,
+            _parse_config_property,
+            headers=headers,
+            last_error=last_error,
+        )
+        if version:
+            return version
 
-        # 3. Actuator info (admin-only on some setups)
         try:
-            console.print("[dim]  → Probing [white]GET …/actuator/info[/white][/dim]")
-            actuator_url = f"{self.base_url}/server/actuator/info"
-            response = await self.client.get(actuator_url, headers=headers)
-            if response.status_code == 200:
-                data = response.json()
-                normalized = self._parse_version_from_json(data)
-                if normalized:
-                    return self._set_last_detected_version(normalized)
-            if not last_error:
-                last_error = f"actuator/info (status: {response.status_code})"
-        except Exception as e:
-            if not last_error:
-                last_error = f"actuator/info: {e}"
+            response = await self.client.get(config_url, headers=headers)
+            if response.status_code == 401:
+                console.print(
+                    "[dim]  → Same endpoint without auth (401 from server; retry unauthenticated)…[/dim]"
+                )
+                async with httpx.AsyncClient(timeout=self.timeout) as unauthenticated_client:
+                    retry_response = await unauthenticated_client.get(config_url)
+                    if retry_response.status_code == 200:
+                        normalized = _parse_config_property(retry_response)
+                        if normalized:
+                            return self._set_last_detected_version(normalized)
+        except (httpx.RequestError, ValueError, KeyError, orjson.JSONDecodeError):
+            pass
+
+        root_url = f"{self.base_url}/server/api"
+        version, last_error = await self._probe_version_endpoint(
+            "GET …/server/api (root HAL)",
+            root_url,
+            lambda response: self._parse_version_from_json(response.json()),
+            headers=headers,
+            last_error=last_error,
+        )
+        if version:
+            return version
+
+        actuator_url = f"{self.base_url}/server/actuator/info"
+        version, last_error = await self._probe_version_endpoint(
+            "GET …/actuator/info",
+            actuator_url,
+            lambda response: self._parse_version_from_json(response.json()),
+            headers=headers,
+            last_error=last_error,
+        )
+        if version:
+            return version
 
         console.print(f"[dim]Warning: Could not detect server version ({last_error}). Version validation skipped.[/dim]")
         return self._set_last_detected_version(None)

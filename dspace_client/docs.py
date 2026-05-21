@@ -3,14 +3,19 @@
 import asyncio
 import subprocess
 from pathlib import Path
-from typing import List, Dict, Optional, Union
-from datetime import datetime, timedelta
+from typing import List, Dict, Optional
+from datetime import datetime, timedelta, timezone
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 
 from .exceptions import DocumentationError, NetworkError
+from .versions import DEFAULT_CACHE_DIR_NAME, REST_CONTRACT_BRANCHES
 
 console = Console()
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_CACHE_DIR = PROJECT_ROOT / "docs" / DEFAULT_CACHE_DIR_NAME
+GIT_TIMEOUT_SECONDS = 30
 
 
 class RestContractFetcher:
@@ -22,28 +27,15 @@ class RestContractFetcher:
     
     GITHUB_REPO = "DSpace/RestContract"
     GITHUB_URL = "https://github.com/DSpace/RestContract.git"
-    # Store git repos in project directory (excluded from git)
-    CACHE_DIR = Path("docs") / "dspace-rest-api"
-    
-    VERSION_MAPPING = {
-        "bleeding-edge": "main",  # Latest development branch
-        "7.0": "dspace-7_x",
-        "7.1": "dspace-7_x", 
-        "7.2": "dspace-7_x",
-        "7.3": "dspace-7_x",
-        "7.4": "dspace-7_x",
-        "7.5": "dspace-7_x",
-        "7.6": "dspace-7_x",
-        "8.0": "dspace-8.0",
-        "9.0": "main",  # DSpace 9 is on main
-    }
+    CACHE_DIR = DEFAULT_CACHE_DIR
+    VERSION_MAPPING = REST_CONTRACT_BRANCHES
     
     def __init__(self, cache_dir: Optional[Path] = None):
         """
         Initialize documentation fetcher.
         
         Args:
-            cache_dir: Custom cache directory (defaults to docs/dspace-rest-api/)
+            cache_dir: Custom cache directory (defaults to project docs/dspace-rest-api/)
         """
         self.cache_dir = cache_dir or self.CACHE_DIR
         self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -52,7 +44,8 @@ class RestContractFetcher:
         """
         Clone/fetch REST contract for specific DSpace version.
         
-        CALLED AUTOMATICALLY on DSpaceClient initialization.
+        Call explicitly via ``await client.docs_fetcher.fetch_version(...)`` or
+        ``create_validated_client(..., fetch_docs=True)``.
         
         Args:
             version: "bleeding-edge", "7.0", "8.0", "9.0", etc.
@@ -94,9 +87,31 @@ class RestContractFetcher:
         
         except subprocess.CalledProcessError as e:
             raise NetworkError(f"Git operation failed: {e}")
+        except subprocess.TimeoutExpired as e:
+            raise NetworkError(f"Git operation timed out: {e}")
         except Exception as e:
             raise DocumentationError(f"Failed to fetch documentation: {e}")
     
+    async def _run_git(self, *args: str, cwd: Optional[Path] = None) -> None:
+        result = await asyncio.create_subprocess_exec(
+            *args,
+            cwd=cwd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                result.communicate(),
+                timeout=GIT_TIMEOUT_SECONDS,
+            )
+        except asyncio.TimeoutError as e:
+            result.kill()
+            await result.wait()
+            raise NetworkError(f"Git operation timed out: {' '.join(args)}") from e
+
+        if result.returncode != 0:
+            raise NetworkError(f"Git command failed ({' '.join(args)}): {stderr.decode()}")
+
     async def _clone_repository(self, repo_path: Path, branch: str):
         """Clone the RestContract repository."""
         with Progress(
@@ -107,20 +122,16 @@ class RestContractFetcher:
             console=console,
         ) as progress:
             task = progress.add_task(f"Cloning {branch} branch...", total=None)
-            
-            # Clone the repository
-            cmd = ["git", "clone", "--depth", "1", "--branch", branch, self.GITHUB_URL, str(repo_path)]
-            result = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+            await self._run_git(
+                "git",
+                "clone",
+                "--depth",
+                "1",
+                "--branch",
+                branch,
+                self.GITHUB_URL,
+                str(repo_path),
             )
-            
-            stdout, stderr = await result.communicate()
-            
-            if result.returncode != 0:
-                raise NetworkError(f"Git clone failed: {stderr.decode()}")
-            
             progress.update(task, description=f"✓ Cloned {branch} branch")
     
     async def _update_repository(self, repo_path: Path, branch: str):
@@ -133,35 +144,22 @@ class RestContractFetcher:
             console=console,
         ) as progress:
             task = progress.add_task(f"Updating {branch} branch...", total=None)
-            
-            # Fetch latest changes
-            cmd = ["git", "fetch", "origin", branch]
-            result = await asyncio.create_subprocess_exec(
-                *cmd,
+            await self._run_git(
+                "git",
+                "fetch",
+                "--depth",
+                "1",
+                "origin",
+                branch,
                 cwd=repo_path,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
             )
-            
-            stdout, stderr = await result.communicate()
-            
-            if result.returncode != 0:
-                raise NetworkError(f"Git fetch failed: {stderr.decode()}")
-            
-            # Reset to latest commit
-            cmd = ["git", "reset", "--hard", f"origin/{branch}"]
-            result = await asyncio.create_subprocess_exec(
-                *cmd,
+            await self._run_git(
+                "git",
+                "reset",
+                "--hard",
+                f"origin/{branch}",
                 cwd=repo_path,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
             )
-            
-            stdout, stderr = await result.communicate()
-            
-            if result.returncode != 0:
-                raise NetworkError(f"Git reset failed: {stderr.decode()}")
-            
             progress.update(task, description=f"✓ Updated {branch} branch")
     
     async def update_all_versions(self) -> Dict[str, bool]:
@@ -189,7 +187,10 @@ class RestContractFetcher:
         if timestamp_file.exists():
             try:
                 timestamp_str = timestamp_file.read_text().strip()
-                return datetime.fromisoformat(timestamp_str)
+                last_update = datetime.fromisoformat(timestamp_str)
+                if last_update.tzinfo is None:
+                    last_update = last_update.replace(tzinfo=timezone.utc)
+                return last_update
             except ValueError:
                 return None
         return None
@@ -200,13 +201,13 @@ class RestContractFetcher:
         if last_update is None:
             return True
         
-        age = datetime.now() - last_update
+        age = datetime.now(timezone.utc) - last_update
         return age > timedelta(hours=max_age_hours)
     
     def _update_last_update_time(self, version: str):
         """Update the last update timestamp for a version."""
         timestamp_file = self.cache_dir / f"{version}.last_update"
-        timestamp_file.write_text(datetime.now().isoformat())
+        timestamp_file.write_text(datetime.now(timezone.utc).isoformat())
     
     def list_cached_versions(self) -> List[str]:
         """List locally cached documentation versions."""
@@ -231,7 +232,7 @@ class RestContractFetcher:
                 content = doc_file.read_text(encoding='utf-8')
                 if endpoint.lower() in content.lower():
                     return content
-            except Exception:
+            except OSError:
                 continue
         
         return f"No documentation found for endpoint '{endpoint}' in version {version}"
@@ -242,60 +243,7 @@ class RestContractFetcher:
         
         Returns True if compatible with ALL versions, False otherwise.
         """
-        # This is a placeholder - in a full implementation, this would:
-        # 1. Parse the REST contract documentation
-        # 2. Extract endpoint definitions and supported operations
-        # 3. Check if the operation is documented for the endpoint
-        # 4. Verify compatibility across all target versions
-        
-        # For now, assume all operations are supported
-        # This will be enhanced when we implement full documentation parsing
         return True
-    
-    def get_repo_status(self, version: str) -> Dict[str, str]:
-        """Get git status information for a version."""
-        repo_path = self.cache_dir / version
-        if not repo_path.exists():
-            return {"status": "not_found"}
-        
-        try:
-            # Get current branch
-            result = subprocess.run(
-                ["git", "branch", "--show-current"],
-                cwd=repo_path,
-                capture_output=True,
-                text=True
-            )
-            current_branch = result.stdout.strip() if result.returncode == 0 else "unknown"
-            
-            # Get last commit hash
-            result = subprocess.run(
-                ["git", "rev-parse", "--short", "HEAD"],
-                cwd=repo_path,
-                capture_output=True,
-                text=True
-            )
-            last_commit = result.stdout.strip() if result.returncode == 0 else "unknown"
-            
-            # Get last commit date
-            result = subprocess.run(
-                ["git", "log", "-1", "--format=%ci"],
-                cwd=repo_path,
-                capture_output=True,
-                text=True
-            )
-            last_commit_date = result.stdout.strip() if result.returncode == 0 else "unknown"
-            
-            return {
-                "status": "available",
-                "branch": current_branch,
-                "last_commit": last_commit,
-                "last_commit_date": last_commit_date,
-                "last_update": str(self.get_last_update_time(version) or "never")
-            }
-        
-        except Exception as e:
-            return {"status": "error", "error": str(e)}
     
     def get_version_status(self, version: str) -> dict:
         """Get status information for a specific version."""
@@ -304,23 +252,23 @@ class RestContractFetcher:
             if not version_dir.exists():
                 return {"status": "not_fetched", "branch": "-", "last_update": "never"}
             
-            # Get current branch
             result = subprocess.run(
                 ["git", "branch", "--show-current"],
                 cwd=version_dir,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
+                timeout=GIT_TIMEOUT_SECONDS,
             )
             current_branch = result.stdout.strip()
             
-            # Get last commit info
             result = subprocess.run(
                 ["git", "log", "-1", "--format=%H %ci"],
                 cwd=version_dir,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
+                timeout=GIT_TIMEOUT_SECONDS,
             )
             if result.stdout.strip():
                 last_commit, last_commit_date = result.stdout.strip().split(" ", 1)
@@ -336,6 +284,8 @@ class RestContractFetcher:
                 "last_update": str(self.get_last_update_time(version) or "never")
             }
         
+        except subprocess.TimeoutExpired:
+            return {"status": "error", "error": "git command timed out"}
         except Exception as e:
             return {"status": "error", "error": str(e)}
 

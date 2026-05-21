@@ -93,7 +93,7 @@ class TestDSpaceClient:
 
         for method in ("POST", "PUT", "PATCH", "DELETE"):
             with pytest.raises(AuthenticationError, match="anonymous mode"):
-                await client._request(method, "core/communities")
+                await client._request(method, "core/communities", method_name="create_community")
 
         # No HTTP call should have been attempted.
         mock_http_client.request.assert_not_called()
@@ -106,7 +106,9 @@ class TestDSpaceClient:
         mock_response.json.return_value = {"uuid": "test-uuid", "name": "Test"}
         mock_dspace_client.client.request.return_value = mock_response
         
-        response = await mock_dspace_client._request("GET", "core/communities")
+        response = await mock_dspace_client._request(
+            "GET", "core/communities", method_name="create_community"
+        )
         
         assert response == mock_response
         mock_dspace_client.client.request.assert_called_once()
@@ -121,7 +123,72 @@ class TestDSpaceClient:
         mock_dspace_client.client.request.return_value = mock_response
         
         with pytest.raises(DSpaceAPIError, match="GET.*failed with status 400"):
-            await mock_dspace_client._request("GET", "core/communities")
+            await mock_dspace_client._request(
+                "GET", "core/communities", method_name="create_community"
+            )
+
+    @pytest.mark.asyncio
+    async def test_request_retries_on_503(self, mock_http_client):
+        """Retryable server errors are retried up to max_retries."""
+        from unittest.mock import MagicMock
+
+        client = DSpaceClient(
+            base_url="https://demo.dspace.org",
+            jwt_token="jwt",
+            csrf_token="csrf",
+            http_client=mock_http_client,
+            target_versions="bleeding-edge",
+            courtesy_delay=0.0,
+            max_retries=2,
+        )
+
+        fail_response = MagicMock()
+        fail_response.status_code = 503
+        fail_response.text = "Service Unavailable"
+        fail_response.headers = {}
+
+        ok_response = MagicMock()
+        ok_response.status_code = 200
+        ok_response.text = "OK"
+        ok_response.headers = {}
+
+        mock_http_client.request = AsyncMock(side_effect=[fail_response, ok_response])
+
+        response = await client._request(
+            "GET", "core/communities", method_name="create_community"
+        )
+
+        assert response.status_code == 200
+        assert mock_http_client.request.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_request_does_not_retry_on_400(self, mock_http_client):
+        """Non-retryable client errors fail immediately."""
+        from unittest.mock import MagicMock
+
+        client = DSpaceClient(
+            base_url="https://demo.dspace.org",
+            jwt_token="jwt",
+            csrf_token="csrf",
+            http_client=mock_http_client,
+            target_versions="bleeding-edge",
+            courtesy_delay=0.0,
+            max_retries=3,
+        )
+
+        fail_response = MagicMock()
+        fail_response.status_code = 400
+        fail_response.text = "Bad Request"
+        fail_response.headers = {}
+
+        mock_http_client.request = AsyncMock(return_value=fail_response)
+
+        with pytest.raises(DSpaceAPIError, match="status 400"):
+            await client._request(
+                "GET", "core/communities", method_name="create_community"
+            )
+
+        assert mock_http_client.request.await_count == 1
     
     @pytest.mark.asyncio
     async def test_create_community_success(self, mock_dspace_client, sample_community_data):
@@ -142,6 +209,7 @@ class TestDSpaceClient:
                     "dc.title": [{"value": "Test Community", "language": None, "authority": None, "confidence": -1}]
                 }
             }
+            , method_name="create_community"
         )
     
     @pytest.mark.asyncio
@@ -168,6 +236,7 @@ class TestDSpaceClient:
                 "name": "Test Community",
                 "metadata": custom_metadata
             }
+            , method_name="create_community"
         )
     
     @pytest.mark.asyncio
@@ -191,6 +260,7 @@ class TestDSpaceClient:
                     "dc.title": [{"value": "Test Subcommunity", "language": None, "authority": None, "confidence": -1}]
                 }
             }
+            , method_name="create_community"
         )
     
     @pytest.mark.asyncio
@@ -201,7 +271,7 @@ class TestDSpaceClient:
         await mock_dspace_client.delete_community("test-uuid")
         
         mock_dspace_client._request.assert_called_once_with(
-            "DELETE", "core/communities/test-uuid"
+            "DELETE", "core/communities/test-uuid", method_name="delete_community"
         )
     
     @pytest.mark.asyncio
@@ -225,6 +295,7 @@ class TestDSpaceClient:
                     "dc.title": [{"value": "Test Collection", "language": None, "authority": None, "confidence": -1}]
                 }
             }
+            , method_name="create_collection"
         )
     
     @pytest.mark.asyncio
@@ -252,6 +323,7 @@ class TestDSpaceClient:
                 "withdrawn": False,
                 "type": "item"
             }
+            , method_name="create_item"
         )
     
     @pytest.mark.asyncio
@@ -271,6 +343,7 @@ class TestDSpaceClient:
                 "name": "ORIGINAL",
                 "metadata": {}
             }
+            , method_name="create_bundle"
         )
     
     @pytest.mark.asyncio
@@ -334,6 +407,7 @@ class TestDSpaceClient:
                 "requireCertificate": False,
                 "type": "eperson"
             }
+            , method_name="create_eperson"
         )
     
     @pytest.mark.asyncio
@@ -355,9 +429,8 @@ class TestDSpaceClient:
                     "dc.description": [{"value": "Test Description", "language": None, "authority": None, "confidence": -1}]
                 }
             }
+            , method_name="create_group"
         )
-
-    # ----- Item bundles, bitstreams, formats, PDF count -----
 
     @pytest.mark.asyncio
     async def test_get_item_bundles_success(self, mock_dspace_client):
@@ -369,7 +442,7 @@ class TestDSpaceClient:
         result = await mock_dspace_client.get_item_bundles("item-uuid-123")
         assert result == bundles_data
         mock_dspace_client._request.assert_called_once_with(
-            "GET", "core/items/item-uuid-123/bundles"
+            "GET", "core/items/item-uuid-123/bundles", method_name="get_item_bundles"
         )
 
     @pytest.mark.asyncio
@@ -388,7 +461,8 @@ class TestDSpaceClient:
         result = await mock_dspace_client.get_bundle_bitstreams("bundle-uuid", embed_format=True)
         assert result == bitstreams_data
         mock_dspace_client._request.assert_called_once_with(
-            "GET", "core/bundles/bundle-uuid/bitstreams", params={"embed": "format"}
+            "GET", "core/bundles/bundle-uuid/bitstreams", params={"embed": "format"},
+            method_name="get_bundle_bitstreams",
         )
 
     @pytest.mark.asyncio
@@ -401,7 +475,7 @@ class TestDSpaceClient:
         result = await mock_dspace_client.get_bitstream_format("bitstream-uuid")
         assert result == format_data
         mock_dspace_client._request.assert_called_once_with(
-            "GET", "core/bitstreams/bitstream-uuid/format"
+            "GET", "core/bitstreams/bitstream-uuid/format", method_name="get_bitstream_format"
         )
 
     @pytest.mark.asyncio
@@ -420,7 +494,8 @@ class TestDSpaceClient:
         result = await mock_dspace_client.get_bitstream_formats(page=0, size=100)
         assert result == formats_data
         mock_dspace_client._request.assert_called_once_with(
-            "GET", "core/bitstreamformats", params={"page": 0, "size": 100}
+            "GET", "core/bitstreamformats", params={"page": 0, "size": 100},
+            method_name="get_bitstream_formats",
         )
 
     @pytest.mark.asyncio

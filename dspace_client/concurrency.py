@@ -39,12 +39,25 @@ class AdaptiveSemaphore:
     
     def __init__(self, config: ConcurrencyConfig):
         self.config = config
-        self._semaphore = asyncio.Semaphore(config.initial)
+        self._semaphore = asyncio.Semaphore(config.max_concurrency)
         self._current_limit = config.initial
+        self._held_permits = config.max_concurrency - config.initial
         self._lock = asyncio.Lock()
+        self._initialized = False
+    
+    async def _ensure_initialized(self) -> None:
+        if self._initialized:
+            return
+        async with self._lock:
+            if self._initialized:
+                return
+            for _ in range(self._held_permits):
+                await self._semaphore.acquire()
+            self._initialized = True
     
     async def acquire(self):
         """Acquire the semaphore."""
+        await self._ensure_initialized()
         await self._semaphore.acquire()
     
     def release(self):
@@ -177,14 +190,28 @@ class PerformanceMonitor:
         
         baseline_times = list(self.operation_times)[:baseline_size]
         recent_times = list(self.operation_times)[-baseline_size:]
+        baseline_timestamps = list(self.operation_timestamps)[:baseline_size]
+        recent_timestamps = list(self.operation_timestamps)[-baseline_size:]
         
         # Calculate baseline metrics
         baseline_p95 = statistics.quantiles(baseline_times, n=20)[18] if len(baseline_times) > 1 else 0
-        baseline_throughput = len(baseline_times) / (baseline_times[-1] - baseline_times[0]) if len(baseline_times) > 1 else 0
+        baseline_span = (
+            baseline_timestamps[-1] - baseline_timestamps[0]
+            if len(baseline_timestamps) > 1
+            else 0
+        )
+        baseline_throughput = (
+            len(baseline_times) / baseline_span if baseline_span > 0 else 0
+        )
         
         # Calculate recent metrics
         recent_p95 = statistics.quantiles(recent_times, n=20)[18] if len(recent_times) > 1 else 0
-        recent_throughput = len(recent_times) / (recent_times[-1] - recent_times[0]) if len(recent_times) > 1 else 0
+        recent_span = (
+            recent_timestamps[-1] - recent_timestamps[0]
+            if len(recent_timestamps) > 1
+            else 0
+        )
+        recent_throughput = len(recent_times) / recent_span if recent_span > 0 else 0
         
         # Check for degradation
         latency_degradation = (recent_p95 - baseline_p95) / baseline_p95 if baseline_p95 > 0 else 0
@@ -350,11 +377,3 @@ class AdaptiveDelayController:
                 self._current_delay = max(
                     self.config.min_delay, min(self.config.max_delay, new_delay)
                 )
-
-    
-    async def __aenter__(self):
-        await self.acquire()
-        return self
-    
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        self.release()

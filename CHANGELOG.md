@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Adaptive concurrency**: `AdaptiveSemaphore` ramp-up now releases pre-held permits; `BatchItemCreator` reuses the live adaptive semaphore; `should_ramp_down` computes throughput from timestamps; removed broken `AdaptiveDelayController` context manager.
+- **Version validation**: `_request` passes explicit method names so the compatibility matrix is consulted correctly.
+- **Request retries**: Tenacity retries now use `retry_if_exception`, honor `max_retries`, and retry on retryable `DSpaceAPIError` status codes (429/502/503/504).
+
 ### Added
 
 - **BatchItemCreator** (`create_items_batch`): optional **`on_metrics_sample`** callback — invoked whenever batch progress metrics are printed (every 50 completed items and at the end), with `(completed, total, PerformanceMetrics)` for time-series / degradation reporting.

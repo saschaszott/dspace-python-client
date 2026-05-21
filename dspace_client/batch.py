@@ -124,10 +124,8 @@ class BatchItemCreator:
     
     async def _execute_batch_with_concurrency(self, tasks: List) -> List[Dict]:
         """Execute a batch of tasks with concurrency control."""
-        semaphore = asyncio.Semaphore(self.controller.semaphore.current_limit)
-        
         async def execute_with_semaphore(task):
-            async with semaphore:
+            async with self.controller.semaphore:
                 start_time = time.time()
                 try:
                     result = await task

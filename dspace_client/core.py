@@ -11,11 +11,10 @@ from typing import Any, Optional, Union, List, Callable
 from pathlib import Path
 from rich.console import Console
 from tenacity import (
-    retry,
+    AsyncRetrying,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception_type,
-    retry_if_result,
+    retry_if_exception,
 )
 
 from .exceptions import (
@@ -34,16 +33,14 @@ logger = logging.getLogger(__name__)
 console = Console()
 
 
-def should_retry_request(exception):
+def should_retry_request(exception: BaseException) -> bool:
     """Check if a request should be retried based on the exception."""
-    if isinstance(exception, (httpx.ConnectTimeout, httpx.TimeoutException)):
+    if isinstance(exception, httpx.RequestError):
         return True
-    
-    if isinstance(exception, httpx.HTTPStatusError):
-        # Retry on rate limiting and server errors
-        status_code = exception.response.status_code
-        return status_code in (429, 503, 502, 504)
-    
+
+    if isinstance(exception, DSpaceAPIError):
+        return exception.status_code in (429, 502, 503, 504)
+
     return False
 
 
@@ -176,17 +173,14 @@ class DSpaceClient:
                 "create_anonymous_client()."
             )
 
-    @retry(
-        stop=stop_after_attempt(5),
-        wait=wait_exponential(multiplier=1, min=1, max=10),
-        retry=should_retry_request,
-    )
     async def _request(
         self,
         method: str,
         endpoint: str,
         json_data: Optional[dict] = None,
         params: Optional[dict] = None,
+        *,
+        method_name: str,
     ) -> httpx.Response:
         """
         Make an HTTP request to DSpace API with version validation.
@@ -196,6 +190,7 @@ class DSpaceClient:
             endpoint: API endpoint path
             json_data: JSON data for request body
             params: Query parameters
+            method_name: Public API method name for version compatibility lookup
         
         Returns:
             Response object
@@ -216,95 +211,77 @@ class DSpaceClient:
 
         # STEP 1: Validate operation against target versions
         self.validator.validate_before_call(
-            method_name=f"{method.lower()}_{endpoint.split('/')[-1]}",
+            method_name=method_name,
             endpoint=endpoint,
-            operation=method
+            operation=method,
         )
-        
-        # STEP 2: Apply courtesy delay
+
+        # STEP 2: Apply courtesy delay once per logical request (not per retry)
         if self.courtesy_delay > 0:
-            import asyncio
             elapsed = time.time() - self._last_request_time
             if elapsed < self.courtesy_delay:
                 await asyncio.sleep(self.courtesy_delay - elapsed)
-        
+
         url = f"{self.base_url}/server/api/{endpoint.lstrip('/')}"
-        
-        # Include CSRF token for modifying requests
-        # DSpace requires X-XSRF-TOKEN header on ALL modifying requests (POST, PUT, PATCH, DELETE)
-        # GET requests don't need it. See csrf-tokens.md in REST contract docs.
         is_modifying = method.upper() in ("POST", "PUT", "PATCH", "DELETE")
         headers = self._get_headers(include_csrf=is_modifying)
-        
-        # Debug logging for modifying requests (commented out - uncomment if debugging)
-        # if is_modifying:
-        #     console.print(f"\n[dim]→ {method} {url}[/dim]")
-        #     console.print(f"[dim]  Headers:[/dim]")
-        #     console.print(f"[dim]    Authorization: Bearer {self.jwt_token[:20]}...[/dim]")
-        #     console.print(f"[dim]    Content-Type: {headers.get('Content-Type')}[/dim]")
-        #     if "X-XSRF-TOKEN" in headers:
-        #         console.print(f"[dim]    X-XSRF-TOKEN: {headers['X-XSRF-TOKEN'][:20]}...[/dim]")
-        #     else:
-        #         console.print(f"[red]    X-XSRF-TOKEN: MISSING![/red]")
-        #     
-        #     console.print(f"[dim]  Cookies in client jar:[/dim]")
-        #     for cookie in self.client.cookies.jar:
-        #         console.print(f"[dim]    {cookie.name} = {cookie.value[:20]}...[/dim]")
-        #     
-        #     if json_data:
-        #         console.print(f"[dim]  Body keys: {list(json_data.keys())}[/dim]")
-        
-        request_start = time.perf_counter()
-        try:
-            response = await self.client.request(
-                method,
-                url,
-                headers=headers,
-                json=json_data,
-                params=params,
-            )
-            
-            # if is_modifying:
-            #     console.print(f"[dim]← Status: {response.status_code}[/dim]")
-            
-            # Check for errors
-            if response.status_code >= 400:
-                error_detail = response.text
-                try:
-                    error_json = response.json()
-                    error_detail = orjson.dumps(error_json).decode()
-                except:
-                    pass
-                
-                console.print(f"[red]Error response:[/red]")
-                console.print(f"[red]  Status: {response.status_code}[/red]")
-                console.print(f"[red]  Response headers:[/red]")
-                for key, value in response.headers.items():
-                    console.print(f"[red]    {key}: {value}[/red]")
-                console.print(f"[red]  Body: {error_detail[:500]}[/red]")
-                
-                raise DSpaceAPIError(
-                    f"{method} {url} failed with status {response.status_code}: {error_detail}",
-                    status_code=response.status_code,
-                )
-            
-            # Update last request time for courtesy delay
-            self._last_request_time = time.time()
-            return response
-        
-        except httpx.RequestError as e:
-            raise DSpaceAPIError(f"Request failed: {e}")
-        finally:
-            duration = time.perf_counter() - request_start
-            if duration >= self.slow_request_threshold_seconds:
-                logger.warning(
-                    "Slow request: %s %s %.2fs",
+
+        async def _dispatch() -> httpx.Response:
+            request_start = time.perf_counter()
+            try:
+                response = await self.client.request(
                     method,
-                    endpoint,
-                    duration,
+                    url,
+                    headers=headers,
+                    json=json_data,
+                    params=params,
                 )
-                if self.slow_request_callback:
-                    self.slow_request_callback(method, endpoint, duration)
+
+                if response.status_code >= 400:
+                    error_detail = response.text
+                    try:
+                        error_json = response.json()
+                        error_detail = orjson.dumps(error_json).decode()
+                    except (ValueError, orjson.JSONDecodeError, TypeError):
+                        pass
+
+                    console.print(f"[red]Error response:[/red]")
+                    console.print(f"[red]  Status: {response.status_code}[/red]")
+                    console.print(f"[red]  Response headers:[/red]")
+                    for key, value in response.headers.items():
+                        console.print(f"[red]    {key}: {value}[/red]")
+                    console.print(f"[red]  Body: {error_detail[:500]}[/red]")
+
+                    raise DSpaceAPIError(
+                        f"{method} {url} failed with status {response.status_code}: {error_detail}",
+                        status_code=response.status_code,
+                    )
+
+                self._last_request_time = time.time()
+                return response
+            except httpx.RequestError as e:
+                raise DSpaceAPIError(f"Request failed: {e}") from e
+            finally:
+                duration = time.perf_counter() - request_start
+                if duration >= self.slow_request_threshold_seconds:
+                    logger.warning(
+                        "Slow request: %s %s %.2fs",
+                        method,
+                        endpoint,
+                        duration,
+                    )
+                    if self.slow_request_callback:
+                        self.slow_request_callback(method, endpoint, duration)
+
+        retrying = AsyncRetrying(
+            stop=stop_after_attempt(self.max_retries + 1),
+            wait=wait_exponential(multiplier=1, min=1, max=10),
+            retry=retry_if_exception(should_retry_request),
+            reraise=True,
+        )
+        async for attempt in retrying:
+            with attempt:
+                return await _dispatch()
     
     # ========== Communities ==========
     
@@ -341,12 +318,12 @@ class DSpaceClient:
         if parent_uuid:
             endpoint = f"{endpoint}?parent={parent_uuid}"
         
-        response = await self._request("POST", endpoint, json_data=payload)
+        response = await self._request("POST", endpoint, json_data=payload, method_name="create_community")
         return response.json()
     
     async def delete_community(self, uuid: str) -> None:
         """Delete a community by UUID."""
-        await self._request("DELETE", f"core/communities/{uuid}")
+        await self._request("DELETE", f"core/communities/{uuid}", method_name="delete_community")
     
     # ========== Collections ==========
     
@@ -383,12 +360,13 @@ class DSpaceClient:
             "POST",
             f"core/collections?parent={parent_community_uuid}",
             json_data=payload,
+            method_name="create_collection",
         )
         return response.json()
     
     async def delete_collection(self, uuid: str) -> None:
         """Delete a collection by UUID."""
-        await self._request("DELETE", f"core/collections/{uuid}")
+        await self._request("DELETE", f"core/collections/{uuid}", method_name="delete_collection")
     
     # ========== Items ==========
     
@@ -429,12 +407,13 @@ class DSpaceClient:
             "POST",
             f"core/items?owningCollection={owning_collection_uuid}",
             json_data=payload,
+            method_name="create_item",
         )
         return response.json()
     
     async def delete_item(self, uuid: str) -> None:
         """Delete an item by UUID."""
-        await self._request("DELETE", f"core/items/{uuid}")
+        await self._request("DELETE", f"core/items/{uuid}", method_name="delete_item")
     
     # ========== Bundles ==========
     
@@ -458,6 +437,7 @@ class DSpaceClient:
             "POST",
             f"core/items/{item_uuid}/bundles",
             json_data=payload,
+            method_name="create_bundle",
         )
         return response.json()
     
@@ -540,7 +520,7 @@ class DSpaceClient:
     
     async def delete_bitstream(self, uuid: str) -> None:
         """Delete a bitstream by UUID."""
-        await self._request("DELETE", f"core/bitstreams/{uuid}")
+        await self._request("DELETE", f"core/bitstreams/{uuid}", method_name="delete_bitstream")
 
     async def get_item_bundles(self, item_uuid: str) -> dict:
         """
@@ -555,7 +535,9 @@ class DSpaceClient:
         Returns:
             Response with "bundles" or "_embedded"."bundles" list
         """
-        response = await self._request("GET", f"core/items/{item_uuid}/bundles")
+        response = await self._request(
+            "GET", f"core/items/{item_uuid}/bundles", method_name="get_item_bundles"
+        )
         return response.json()
 
     async def get_bundle_bitstreams(
@@ -578,7 +560,8 @@ class DSpaceClient:
         """
         params = {"embed": "format"} if embed_format else None
         response = await self._request(
-            "GET", f"core/bundles/{bundle_uuid}/bitstreams", params=params
+            "GET", f"core/bundles/{bundle_uuid}/bitstreams", params=params,
+            method_name="get_bundle_bitstreams",
         )
         return response.json()
 
@@ -595,7 +578,7 @@ class DSpaceClient:
             Format object with id, shortDescription, mimetype, etc.
         """
         response = await self._request(
-            "GET", f"core/bitstreams/{bitstream_uuid}/format"
+            "GET", f"core/bitstreams/{bitstream_uuid}/format", method_name="get_bitstream_format"
         )
         return response.json()
 
@@ -617,6 +600,7 @@ class DSpaceClient:
             "GET",
             "core/bitstreamformats",
             params={"page": page, "size": size},
+            method_name="get_bitstream_formats",
         )
         return response.json()
 
@@ -649,7 +633,9 @@ class DSpaceClient:
         if referrer:
             payload["referrer"] = referrer
         
-        response = await self._request("POST", "statistics/viewevents", json_data=payload)
+        response = await self._request(
+            "POST", "statistics/viewevents", json_data=payload, method_name="create_item_view"
+        )
         return response.json()
     
     # ========== EPeople ==========
@@ -694,12 +680,14 @@ class DSpaceClient:
             "type": "eperson"
         }
         
-        response = await self._request("POST", "eperson/epersons", json_data=payload)
+        response = await self._request(
+            "POST", "eperson/epersons", json_data=payload, method_name="create_eperson"
+        )
         return response.json()
     
     async def delete_eperson(self, uuid: str) -> None:
         """Delete an EPerson by UUID."""
-        await self._request("DELETE", f"eperson/epersons/{uuid}")
+        await self._request("DELETE", f"eperson/epersons/{uuid}", method_name="delete_eperson")
     
     async def add_eperson_to_group(
         self,
@@ -762,12 +750,14 @@ class DSpaceClient:
             "metadata": metadata,
         }
         
-        response = await self._request("POST", "eperson/groups", json_data=payload)
+        response = await self._request(
+            "POST", "eperson/groups", json_data=payload, method_name="create_group"
+        )
         return response.json()
     
     async def delete_group(self, uuid: str) -> None:
         """Delete a group by UUID."""
-        await self._request("DELETE", f"eperson/groups/{uuid}")
+        await self._request("DELETE", f"eperson/groups/{uuid}", method_name="delete_group")
     
     async def search_group_by_name(self, name: str) -> Optional[dict]:
         """
@@ -785,7 +775,8 @@ class DSpaceClient:
         response = await self._request(
             "GET",
             "eperson/groups/search/byMetadata",
-            params={"query": name}
+            params={"query": name},
+            method_name="search_group_by_name",
         )
         
         data = response.json()
@@ -1016,12 +1007,12 @@ class DSpaceClient:
             for filter_name, (value, operator) in filters.items():
                 params[f"f.{filter_name}"] = f"{value},{operator}"
         
-        response = await self._request("GET", "discover/search/objects", params=params)
+        response = await self._request("GET", "discover/search/objects", params=params, method_name="search_items")
         return response.json()
     
     async def get_item(self, uuid: str) -> dict:
         """Get full item details by UUID."""
-        response = await self._request("GET", f"core/items/{uuid}")
+        response = await self._request("GET", f"core/items/{uuid}", method_name="get_item")
         return response.json()
 
     async def resolve_pdf_format_id(
@@ -1316,6 +1307,7 @@ class DSpaceClient:
             "PATCH",
             f"core/items/{uuid}",
             json_data=operations,  # type: ignore[arg-type]
+            method_name="patch_item",
         )
         return response.json()
 
@@ -1356,6 +1348,7 @@ class DSpaceClient:
             "GET",
             f"submission/vocabularies/{vocabulary_name}/entries",
             params=params,
+            method_name="get_vocabulary_entries",
         )
         return response.json()
 
@@ -1374,6 +1367,7 @@ class DSpaceClient:
             response = await self._request(
                 "GET",
                 f"submission/vocabularyEntryDetails/{vocabulary_name}:{entry_id}",
+                method_name="get_vocabulary_entry_detail",
             )
             return response.json()
         except Exception:
@@ -1381,7 +1375,7 @@ class DSpaceClient:
 
     async def get_eperson(self, uuid: str) -> dict:
         """Get EPerson details by UUID."""
-        response = await self._request("GET", f"eperson/epersons/{uuid}")
+        response = await self._request("GET", f"eperson/epersons/{uuid}", method_name="get_eperson")
         return response.json()
     
     async def verify_server_version(self, raise_on_mismatch: bool = True) -> Optional[str]:

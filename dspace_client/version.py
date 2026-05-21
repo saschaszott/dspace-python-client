@@ -104,6 +104,18 @@ class VersionCompatibility:
         # Statistics
         "create_item_view": ["7.0+"],
         
+        # Read operations
+        "get_item_bundles": ["7.0+"],
+        "get_bundle_bitstreams": ["7.0+"],
+        "get_bitstream_format": ["7.0+"],
+        "get_bitstream_formats": ["7.0+"],
+        "search_items": ["7.0+"],
+        "get_item": ["7.0+"],
+        "patch_item": ["7.0+"],
+        "get_vocabulary_entries": ["7.0+"],
+        "get_vocabulary_entry_detail": ["7.0+"],
+        "get_eperson": ["7.0+"],
+        
         # Future methods might be version-specific
         # "create_workflow_item": ["8.0+"],  # Example of version-specific method
     }

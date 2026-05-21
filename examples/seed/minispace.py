@@ -271,7 +271,7 @@ async def main_async(args: argparse.Namespace) -> None:
         return
 
     base_url = console.input(
-        f"[bold cyan]DSpace base URL[/bold cyan] [dim](Enter for https://demo.dspace.org):[/dim] "
+        "[bold cyan]DSpace base URL[/bold cyan] [dim](Enter for https://demo.dspace.org):[/dim] "
     ).strip()
     if not base_url:
         base_url = "https://demo.dspace.org"

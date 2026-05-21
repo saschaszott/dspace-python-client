@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from typing import Optional, TextIO
-
+from typing import TextIO
 
 LOG_ENV_DIR = "FULLTEXT_FINDER_LOG_DIR"
 LOG_FILENAME_PREFIX = "full_text_finder_"
 
 
-def open_audit_log() -> tuple[Optional[TextIO], Optional[str]]:
+def open_audit_log() -> tuple[TextIO | None, str | None]:
     """
     Open a new timestamped log file for writing UTF-8 lines.
 
@@ -27,7 +26,7 @@ def open_audit_log() -> tuple[Optional[TextIO], Optional[str]]:
     return f, log_path
 
 
-def log_line(log_file: Optional[TextIO], line: str) -> None:
+def log_line(log_file: TextIO | None, line: str) -> None:
     """Write one line with ISO-like local timestamp and flush."""
     if log_file is None:
         return
@@ -36,4 +35,4 @@ def log_line(log_file: Optional[TextIO], line: str) -> None:
     log_file.flush()
 
 
-__all__ = ["LOG_ENV_DIR", "LOG_FILENAME_PREFIX", "open_audit_log", "log_line"]
+__all__ = ["LOG_ENV_DIR", "LOG_FILENAME_PREFIX", "log_line", "open_audit_log"]

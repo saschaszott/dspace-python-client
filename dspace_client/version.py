@@ -2,12 +2,12 @@
 
 import re
 from dataclasses import dataclass
-from typing import List, Dict, Optional, Union, Tuple
+
 from .exceptions import VersionIncompatibilityError
 from .versions import SUPPORTED_VERSIONS as _SUPPORTED_VERSIONS
 
 
-def _extract_major_minor(version_str: str) -> Optional[str]:
+def _extract_major_minor(version_str: str) -> str | None:
     """
     Extract a major.minor version substring from a free-form version string.
 
@@ -31,10 +31,10 @@ class DSpaceVersion:
     """Represents a DSpace version."""
     major: int
     minor: int
-    
+
     def __str__(self) -> str:
         return f"{self.major}.{self.minor}"
-    
+
     @classmethod
     def from_string(cls, version_str: str) -> "DSpaceVersion":
         """
@@ -43,13 +43,13 @@ class DSpaceVersion:
         """
         try:
             # Handle patch versions (e.g., "9.0.1" -> "9.0")
-            parts = version_str.split('.')
+            parts = version_str.split(".")
             major = int(parts[0])
             minor = int(parts[1]) if len(parts) > 1 else 0
             return cls(major, minor)
         except (ValueError, IndexError):
             raise ValueError(f"Invalid version string: {version_str}")
-    
+
     @property
     def version_string(self) -> str:
         """Get version as string."""
@@ -62,7 +62,7 @@ class VersionCompatibility:
     
     CRITICAL: Every API call is validated before execution.
     """
-    
+
     SUPPORTED_VERSIONS = _SUPPORTED_VERSIONS
 
     # Method compatibility matrix
@@ -78,26 +78,26 @@ class VersionCompatibility:
         "create_bundle": ["7.0+"],
         "upload_bitstream": ["7.0+"],
         "delete_bitstream": ["7.0+"],
-        
+
         # EPerson operations
         "create_eperson": ["7.0+"],
         "delete_eperson": ["7.0+"],
         "add_eperson_to_group": ["7.0+"],
-        
+
         # Group operations
         "create_group": ["7.0+"],
         "delete_group": ["7.0+"],
         "search_group_by_name": ["7.0+"],
         "find_or_create_group": ["7.0+"],
         "add_subgroup_to_group": ["7.0+"],
-        
+
         # Collection default groups
         "create_collection_item_read_group": ["7.0+"],
         "create_collection_bitstream_read_group": ["7.0+"],
-        
+
         # Statistics
         "create_item_view": ["7.0+"],
-        
+
         # Read operations
         "get_item_bundles": ["7.0+"],
         "get_bundle_bitstreams": ["7.0+"],
@@ -109,12 +109,12 @@ class VersionCompatibility:
         "get_vocabulary_entries": ["7.0+"],
         "get_vocabulary_entry_detail": ["7.0+"],
         "get_eperson": ["7.0+"],
-        
+
         # Future methods might be version-specific
         # "create_workflow_item": ["8.0+"],  # Example of version-specific method
     }
-    
-    def __init__(self, target_versions: Union[str, List[str]], docs_fetcher=None):
+
+    def __init__(self, target_versions: str | list[str], docs_fetcher=None):
         """
         Initialize validator with target versions.
         
@@ -126,14 +126,14 @@ class VersionCompatibility:
             self.target_versions = [target_versions]
         else:
             self.target_versions = target_versions
-        
+
         self.docs_fetcher = docs_fetcher
-        
+
         # Validate that all target versions are supported
         for version in self.target_versions:
             if version not in self.SUPPORTED_VERSIONS:
                 raise ValueError(f"Unsupported DSpace version: {version}")
-    
+
     def validate_before_call(self, method_name: str, endpoint: str, operation: str) -> None:
         """
         Validate operation is compatible with ALL target versions.
@@ -152,22 +152,22 @@ class VersionCompatibility:
         if method_name not in self.COMPATIBILITY:
             # If not in matrix, assume it's supported in all versions
             return
-        
+
         required_versions = self.COMPATIBILITY[method_name]
-        
+
         # Check if any target version is incompatible
         incompatible_versions = []
         for target_version in self.target_versions:
             if not self._is_version_compatible(target_version, required_versions):
                 incompatible_versions.append(target_version)
-        
+
         if incompatible_versions:
             # Find which versions DO support this operation
             supported_versions = []
             for version in self.target_versions:
                 if self._is_version_compatible(version, required_versions):
                     supported_versions.append(version)
-            
+
             raise VersionIncompatibilityError(
                 operation=method_name,
                 target_versions=self.target_versions,
@@ -178,13 +178,13 @@ class VersionCompatibility:
                     f"Consider using target_versions={supported_versions} or implement workaround."
                 )
             )
-    
-    def _is_version_compatible(self, version: str, required_versions: List[str]) -> bool:
+
+    def _is_version_compatible(self, version: str, required_versions: list[str]) -> bool:
         """Check if a version is compatible with required versions."""
         if version == "bleeding-edge":
             # Bleeding edge supports everything
             return True
-        
+
         # Check if version matches any requirement
         for required in required_versions:
             if required.endswith("+"):
@@ -195,15 +195,15 @@ class VersionCompatibility:
             elif version == required:
                 # Exact version match
                 return True
-        
+
         return False
-    
+
     def _version_compare(self, version1: str, version2: str) -> int:
         """Compare two version strings. Returns -1, 0, or 1."""
         try:
             v1 = DSpaceVersion.from_string(version1)
             v2 = DSpaceVersion.from_string(version2)
-            
+
             if v1.major != v2.major:
                 return -1 if v1.major < v2.major else 1
             if v1.minor != v2.minor:
@@ -212,41 +212,41 @@ class VersionCompatibility:
         except ValueError:
             # If version parsing fails, assume incompatible
             return -1
-    
-    def get_compatibility_report(self) -> Dict[str, List[str]]:
+
+    def get_compatibility_report(self) -> dict[str, list[str]]:
         """Generate report of which operations work with which versions."""
         report = {}
-        
+
         for method_name, required_versions in self.COMPATIBILITY.items():
             compatible_versions = []
             for target_version in self.target_versions:
                 if self._is_version_compatible(target_version, required_versions):
                     compatible_versions.append(target_version)
-            
+
             report[method_name] = compatible_versions
-        
+
         return report
-    
-    def get_incompatible_operations(self) -> Dict[str, List[str]]:
+
+    def get_incompatible_operations(self) -> dict[str, list[str]]:
         """Get operations that are incompatible with current target versions."""
         incompatible = {}
-        
+
         for method_name, required_versions in self.COMPATIBILITY.items():
             incompatible_versions = []
             for target_version in self.target_versions:
                 if not self._is_version_compatible(target_version, required_versions):
                     incompatible_versions.append(target_version)
-            
+
             if incompatible_versions:
                 incompatible[method_name] = incompatible_versions
-        
+
         return incompatible
-    
+
     @staticmethod
     def check_server_version_compatibility(
         server_version: str,
-        target_versions: List[str]
-    ) -> Tuple[bool, Optional[str]]:
+        target_versions: list[str]
+    ) -> tuple[bool, str | None]:
         """
         Check if server version is compatible with target versions.
         
@@ -279,23 +279,23 @@ class VersionCompatibility:
             except ValueError:
                 # If we can't parse, allow it but warn
                 return True, f"Could not parse server version '{server_version}'. Proceeding with caution."
-        
+
         try:
             server_v = DSpaceVersion.from_string(normalized_server_version)
         except ValueError:
             # If we can't parse server version, we can't validate
             return True, f"Could not parse server version '{server_version}'. Version validation skipped."
-        
+
         # Check each target version
         exact_match = False
         same_major = False
         target_majors = set()
-        
+
         for target_version in target_versions:
             try:
                 target_v = DSpaceVersion.from_string(target_version)
                 target_majors.add(target_v.major)
-                
+
                 if server_v.major == target_v.major and server_v.minor == target_v.minor:
                     exact_match = True
                 elif server_v.major == target_v.major:
@@ -303,15 +303,15 @@ class VersionCompatibility:
             except ValueError:
                 # Skip invalid target versions (shouldn't happen, but handle gracefully)
                 continue
-        
+
         # Check for major version mismatch
         if server_v.major not in target_majors:
             return False, None
-        
+
         # Exact match - no warning
         if exact_match:
             return True, None
-        
+
         # Same major, different minor - warn but allow
         if same_major:
             target_versions_str = ", ".join(target_versions)
@@ -319,6 +319,6 @@ class VersionCompatibility:
                 f"Server version {server_version} differs from target version(s) {target_versions_str} "
                 f"(same major version, different minor). Proceeding with caution."
             )
-        
+
         # Should not reach here, but allow if we do
         return True, None

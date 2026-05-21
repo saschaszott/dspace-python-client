@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import httpx
-
 from config import ExternalApiConfig
 from sources import ResolveContext, SourceHit, try_core, try_openaire, try_openalex, try_unpaywall
 

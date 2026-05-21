@@ -14,29 +14,28 @@ Login is still **CSRF → login → GET /authn/status** — same as both codebas
 
 from __future__ import annotations
 
-from typing import Callable, List, Optional, Tuple, Union
+from collections.abc import Callable
+
+from seed_data import DEFAULT_SEED_HTTP_TIMEOUT
 
 from dspace_client import (
     DSpaceAuthClient,
     DSpaceClient,
-    ServerVersionMismatchError,
     show_atmire_promo_start,
 )
-
-from seed_data import DEFAULT_SEED_HTTP_TIMEOUT
 
 
 async def connect_seed_client(
     base_url: str,
     username: str,
     password: str,
-    target_versions: Union[str, List[str]],
+    target_versions: str | list[str],
     *,
     strict_versions: bool = False,
     courtesy_delay: float = 0.0,
     slow_request_threshold_seconds: float = 5.0,
-    slow_request_callback: Optional[Callable[[str, str, float], None]] = None,
-) -> Tuple[DSpaceAuthClient, DSpaceClient]:
+    slow_request_callback: Callable[[str, str, float], None] | None = None,
+) -> tuple[DSpaceAuthClient, DSpaceClient]:
     """
     Authenticate and build a ``DSpaceClient``.
 

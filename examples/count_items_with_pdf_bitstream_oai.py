@@ -22,13 +22,13 @@ from pathlib import Path
 
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 
 from dspace_client import show_script_attribution
 from dspace_client.oai import (
     OAIClient,
-    OAIPDFCountCache,
     OAIError,
+    OAIPDFCountCache,
     iterate_oai_dc_records,
 )
 
@@ -112,13 +112,12 @@ async def main() -> None:
                         total_running += 1
                         if has_pdf:
                             with_pdf_running += 1
-                    else:
-                        if existing["datestamp"] != datestamp or existing["has_pdf"] != has_pdf:
-                            updated_count += 1
-                            if has_pdf and not existing["has_pdf"]:
-                                with_pdf_running += 1
-                            elif not has_pdf and existing["has_pdf"]:
-                                with_pdf_running -= 1
+                    elif existing["datestamp"] != datestamp or existing["has_pdf"] != has_pdf:
+                        updated_count += 1
+                        if has_pdf and not existing["has_pdf"]:
+                            with_pdf_running += 1
+                        elif not has_pdf and existing["has_pdf"]:
+                            with_pdf_running -= 1
                     cache.update(ident, datestamp, has_pdf)
                     progress.update(
                         task_id,

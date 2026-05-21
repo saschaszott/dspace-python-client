@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import AsyncIterator, Optional
+from collections.abc import AsyncIterator
 
 from dspace_client import DSpaceClient
 
@@ -27,7 +27,7 @@ def extract_doi_from_metadata(metadata: dict) -> str:
     uri = first_metadata_value(metadata, "dc.identifier.uri")
     if uri and "doi.org" in uri.lower():
         # strip to path after doi.org/
-        m = re.search(r"doi\.org/(.+)", uri, re.I)
+        m = re.search(r"doi\.org/(.+)", uri, re.IGNORECASE)
         if m:
             return normalize_doi_string(m.group(1).strip())
     return ""
@@ -127,7 +127,7 @@ async def find_eligible_items(
     pdf_format_id: int,
     *,
     query: str,
-    max_items: Optional[int],
+    max_items: int | None,
     single: bool,
 ) -> AsyncIterator[tuple[str, str, dict]]:
     """

@@ -8,7 +8,7 @@ DEFAULT_SEED_HTTP_TIMEOUT = 120.0
 import random
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -46,14 +46,14 @@ class SeedPack:
     works: list[Work]
     group_presets: list[str]
 
-    def get_discipline_by_code(self, code: str) -> Optional[Discipline]:
+    def get_discipline_by_code(self, code: str) -> Discipline | None:
         for disc in self.disciplines:
             if disc.code == code:
                 return disc
         return None
 
     def get_works_for_discipline(
-        self, discipline_code: str, subfield: Optional[str] = None
+        self, discipline_code: str, subfield: str | None = None
     ) -> list[Work]:
         works = [w for w in self.works if w.discipline == discipline_code]
         if subfield:

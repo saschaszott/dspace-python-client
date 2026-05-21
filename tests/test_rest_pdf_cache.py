@@ -1,10 +1,6 @@
 """Tests for RestPDFCountCache."""
 
-import csv
-import tempfile
-from pathlib import Path
 
-import pytest
 
 from dspace_client.rest_pdf_cache import (
     RestPDFCountCache,
@@ -23,7 +19,7 @@ class TestRepositoryCacheId:
         assert _repository_cache_id("https://repo.example.edu") == _repository_cache_id(
             "https://repo.example.edu/"
         )
-        assert "default" != _repository_cache_id("https://repo.example.edu")
+        assert _repository_cache_id("https://repo.example.edu") != "default"
 
     def test_repository_cache_id_safe_filename(self):
         out = _repository_cache_id("https://my-repo.example.edu:443/path")

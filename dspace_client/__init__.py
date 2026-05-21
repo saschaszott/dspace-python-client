@@ -36,33 +36,39 @@ Example:
             print(f"This script only works with DSpace versions: {', '.join(TARGET_VERSIONS)}")
 """
 
+import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from typing import List, Optional, Tuple, Union
+
 import httpx
 
-from .auth import DSpaceAuthClient
-from .core import DSpaceClient
-from .batch import BatchItemCreator
-from .concurrency import ConcurrencyController, ConcurrencyConfig
-from .oai import OAIClient
-from .rest_pdf_cache import RestPDFCountCache
 from .attribution import show_script_attribution
+from .auth import DSpaceAuthClient
+from .batch import BatchItemCreator
+from .concurrency import ConcurrencyConfig, ConcurrencyController
+from .core import DSpaceClient
+from .oai import OAIClient
 from .promo import (
     is_atmire_promo_disabled,
     show_atmire_promo_end,
     show_atmire_promo_start,
 )
-from typing import Union, List, Tuple
+from .rest_pdf_cache import RestPDFCountCache
+
+logging.getLogger("dspace_client").addHandler(logging.NullHandler())
 
 
 async def create_validated_client(
     base_url: str,
     username: str,
     password: str,
-    target_versions: Union[str, List[str]] = "bleeding-edge",
+    target_versions: str | list[str] = "bleeding-edge",
     *,
     show_atmire_promo: bool = False,
     fetch_docs: bool = False,
     **client_kwargs
-) -> Tuple[DSpaceAuthClient, DSpaceClient]:
+) -> tuple[DSpaceAuthClient, DSpaceClient]:
     """
     Authenticate and create DSpaceClient with automatic version validation.
     
@@ -110,7 +116,7 @@ async def create_validated_client(
     timeout = client_kwargs.pop("timeout", 30.0)
     auth = DSpaceAuthClient(base_url, timeout=timeout)
     jwt, status = await auth.authenticate(username, password)
-    
+
     client = DSpaceClient(
         base_url=base_url,
         jwt_token=jwt,
@@ -120,7 +126,7 @@ async def create_validated_client(
         timeout=timeout,
         **client_kwargs,
     )
-    
+
     await client.verify_server_version(raise_on_mismatch=True)
 
     if fetch_docs:
@@ -134,11 +140,35 @@ async def create_validated_client(
     return auth, client
 
 
+@asynccontextmanager
+async def managed_client(
+    base_url: str,
+    username: str,
+    password: str,
+    target_versions: str | list[str] = "bleeding-edge",
+    **client_kwargs,
+) -> AsyncIterator[tuple[DSpaceAuthClient, DSpaceClient]]:
+    """Authenticate, validate, and guarantee ``auth.close()`` in a ``finally`` block."""
+    auth: DSpaceAuthClient | None = None
+    try:
+        auth, client = await create_validated_client(
+            base_url=base_url,
+            username=username,
+            password=password,
+            target_versions=target_versions,
+            **client_kwargs,
+        )
+        yield auth, client
+    finally:
+        if auth is not None:
+            await auth.close()
+
+
 async def create_anonymous_client(
     base_url: str,
-    target_versions: Union[str, List[str]] = "bleeding-edge",
+    target_versions: str | list[str] = "bleeding-edge",
     **client_kwargs,
-) -> Tuple[httpx.AsyncClient, DSpaceClient]:
+) -> tuple[httpx.AsyncClient, DSpaceClient]:
     """Build a DSpaceClient for anonymous, read-only access.
 
     This is the read-only sibling of :func:`create_validated_client`. It
@@ -197,12 +227,12 @@ async def create_anonymous_client(
 
 
 from .exceptions import (
-    DSpaceClientError,
     AuthenticationError,
     DSpaceAPIError,
-    VersionIncompatibilityError,
-    ServerVersionMismatchError,
+    DSpaceClientError,
     OAIError,
+    ServerVersionMismatchError,
+    VersionIncompatibilityError,
 )
 
 __version__ = "0.1.0"
@@ -229,6 +259,7 @@ __all__ = [
     # Helper functions
     "create_validated_client",
     "create_anonymous_client",
+    "managed_client",
     # Script attribution
     "show_script_attribution",
     # Optional Atmire promo (also controlled by DSPACE_CLIENT_DISABLE_ATMIRE_PROMO)

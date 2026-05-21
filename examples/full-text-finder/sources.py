@@ -5,11 +5,9 @@ from __future__ import annotations
 import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
-from typing import Optional
 from urllib.parse import quote, unquote, urlparse
 
 import httpx
-
 from dspace_candidates import normalize_doi_string
 from rate_limit import HostThrottle
 from url_validator import UrlValidationResult, verify_full_text_url
@@ -28,7 +26,7 @@ _openaire_access_exp: float = 0.0
 def _local_tag(tag: str) -> str:
     if not tag:
         return ""
-    return tag.split("}")[-1]
+    return tag.rsplit("}", maxsplit=1)[-1]
 
 
 def is_likely_pdf_url(u: str) -> bool:
@@ -86,7 +84,7 @@ async def try_unpaywall(
     doi: str,
     email: str,
     timeout_s: float,
-) -> Optional[SourceHit]:
+) -> SourceHit | None:
     await THROTTLE_UNPAYWALL.wait()
     api_url = f"https://api.unpaywall.org/v2/{quote(doi, safe='')}?email={quote(email, safe='')}"
     r = await http.get(api_url, follow_redirects=True, timeout=timeout_s)
@@ -102,7 +100,7 @@ async def try_unpaywall(
 
     tried: set[str] = set()
 
-    async def try_location(loc: dict) -> Optional[SourceHit]:
+    async def try_location(loc: dict) -> SourceHit | None:
         url = (loc.get("url_for_pdf") or loc.get("url") or "").strip()
         if not url or url in tried:
             return None
@@ -138,7 +136,7 @@ async def try_openalex(
     email: str,
     timeout_s: float,
     ctx: ResolveContext,
-) -> Optional[SourceHit]:
+) -> SourceHit | None:
     await THROTTLE_OPENALEX.wait()
     doi_url = doi if doi.startswith("https://doi.org/") else f"https://doi.org/{doi}"
     api_url = f"https://api.openalex.org/works/{quote(doi_url, safe='')}?mailto={quote(email, safe='')}"
@@ -161,7 +159,7 @@ async def try_openalex(
 
     tried: set[str] = set()
 
-    async def try_location(loc: Optional[dict]) -> Optional[SourceHit]:
+    async def try_location(loc: dict | None) -> SourceHit | None:
         if not loc:
             return None
         url = (loc.get("pdf_url") or loc.get("landing_page_url") or "").strip()
@@ -259,7 +257,7 @@ async def try_openaire(
     refresh_token: str,
     timeout_s: float,
     ctx: ResolveContext,
-) -> Optional[SourceHit]:
+) -> SourceHit | None:
     if ctx.oa_closed:
         return None
     await THROTTLE_OPENAIRE.wait()
@@ -288,7 +286,7 @@ async def try_core(
     api_key: str,
     timeout_s: float,
     ctx: ResolveContext,
-) -> Optional[SourceHit]:
+) -> SourceHit | None:
     if ctx.oa_closed:
         return None
     if not api_key.strip():

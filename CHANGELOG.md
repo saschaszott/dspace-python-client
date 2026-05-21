@@ -12,8 +12,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Adaptive concurrency**: `AdaptiveSemaphore` ramp-up now releases pre-held permits; `BatchItemCreator` reuses the live adaptive semaphore; `should_ramp_down` computes throughput from timestamps; removed broken `AdaptiveDelayController` context manager.
 - **Version validation**: `_request` passes explicit method names so the compatibility matrix is consulted correctly.
 - **Request retries**: Tenacity retries now use `retry_if_exception`, honor `max_retries`, and retry on retryable `DSpaceAPIError` status codes (429/502/503/504).
+- **Error handling**: Failed API responses log truncated bodies via `logger.warning` instead of dumping response headers to the console; `is_session_valid` no longer catches bare `Exception`.
+- **Docs fetcher**: Cache directory is anchored to the project root; git subprocess calls use timeouts; shallow clones update with `git fetch --depth 1`; duplicate `get_repo_status` removed; timestamps use UTC.
+- **Version lists**: `dspace_client/versions.py` is the single source of truth for supported versions and RestContract branch mapping (includes 7.1–7.5 keys).
+- **Persistent caches**: CSV and `last_until.json` writes are atomic (temp file + `os.replace`).
+- **OAI parsing**: Uses `defusedxml` for safer XML parsing of OAI-PMH responses.
+- **`create_validated_client`**: Forwards `timeout` to both auth and REST clients; adds opt-in `fetch_docs` and `show_atmire_promo` flags (promo no longer shown by default).
 
 ### Added
+
+- **`managed_client`**: Async context manager that authenticates and always closes the auth session in `finally`.
+- **`CONTRIBUTING.md`**: Setup, test, lint, and PR expectations.
+
+### Changed
+
+- **Examples**: `basic_usage.py`, `bulk_import.py`, and `advanced_auth.py` use `managed_client` or `try/finally` for reliable session cleanup; full-text-finder demo credential check uses exact hostname match.
+- **`search_items`**: Validates filter tuple shape with a clear `TypeError`; `sort=None` omits the sort parameter.
+- **Tooling**: Library `NullHandler`, removed obsolete pytest `event_loop` fixture, updated `pyproject.toml` URLs, ruff auto-fixes across library/tests/examples.
 
 - **BatchItemCreator** (`create_items_batch`): optional **`on_metrics_sample`** callback — invoked whenever batch progress metrics are printed (every 50 completed items and at the end), with `(completed, total, PerformanceMetrics)` for time-series / degradation reporting.
 - **examples/seed** — **MegaSpace** (`megaspace.py`): declares **DSpace 9.0**; **`verify_server_version`** runs **by default** (use **`--skip-version-check`** to skip); **courtesy delay** between REST calls (prompt default 1.0 s, or **`--courtesy-delay`**); **slow-request** logging (threshold 2 s) with end-of-run table; **Rich** progress for sequential mega-bitstream uploads; optional **diagnostics export** to `YYYY-MM-DD-HH.MM-megaspace-{hostname}-raw.json` and `-readable.md` (UTC time in filename; payload includes config, samples, degradation hints); **`.gitignore`** patterns for those exports.

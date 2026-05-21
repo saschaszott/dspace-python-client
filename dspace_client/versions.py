@@ -1,9 +1,8 @@
 """Single source of truth for supported DSpace versions and RestContract branches."""
 
-from typing import Dict, List
 
 # Keys accepted as target_versions / docs fetch version arguments.
-SUPPORTED_VERSIONS: Dict[str, List[str]] = {
+SUPPORTED_VERSIONS: dict[str, list[str]] = {
     "bleeding-edge": ["bleeding-edge"],
     "7.0": ["7.0", "7.1", "7.2", "7.3", "7.4", "7.5", "7.6"],
     "7.1": ["7.1", "7.2", "7.3", "7.4", "7.5", "7.6"],
@@ -17,7 +16,7 @@ SUPPORTED_VERSIONS: Dict[str, List[str]] = {
 }
 
 # RestContract git branch/tag per version key.
-REST_CONTRACT_BRANCHES: Dict[str, str] = {
+REST_CONTRACT_BRANCHES: dict[str, str] = {
     "bleeding-edge": "main",
     "7.0": "dspace-7_x",
     "7.1": "dspace-7_x",

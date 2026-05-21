@@ -1,11 +1,10 @@
 """Test configuration and fixtures."""
 
 import os
-
-import pytest
-import asyncio
 from unittest.mock import AsyncMock, MagicMock
+
 import httpx
+import pytest
 
 from dspace_client import DSpaceAuthClient, DSpaceClient
 
@@ -21,14 +20,6 @@ def _disable_atmire_promo():
         os.environ.pop(key, None)
     else:
         os.environ[key] = previous
-
-
-@pytest.fixture
-def event_loop():
-    """Create an instance of the default event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest.fixture

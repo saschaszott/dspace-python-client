@@ -27,10 +27,10 @@ import json
 import os
 import re
 import sys
-from datetime import datetime
 import time
-from typing import Awaitable, Callable, List, Optional, Tuple
 import unicodedata
+from collections.abc import Awaitable, Callable
+from datetime import datetime
 from urllib.parse import urlparse
 
 from rich.console import Console
@@ -53,7 +53,7 @@ _INTRO_TITLE = "Link plain metadata text values to ORCID authorities in your SOL
 _INTRO_BODY = (
     "This script offers different modes to enrich your DSpace items with links to author ORCID "
     "authority records that are already in your SOLR authority core. "
-    "As a prerequisite, any authors you want to link must already be present as \"local\" authorities: "
+    'As a prerequisite, any authors you want to link must already be present as "local" authorities: '
     "you need to have them already linked in at least one publication. "
     "The main reason is that searching and matching in your own local authorities has much higher "
     "accuracy, versus matching to the entire ORCID registry of all researchers worldwide."
@@ -180,7 +180,7 @@ def normalize_name(s: str) -> str:
     return no_accents.lower()
 
 
-def _parse_family_first(name: str) -> Tuple[str, str]:
+def _parse_family_first(name: str) -> tuple[str, str]:
     """Split 'Family, First' into (family, first). If no comma, return (normalized, '')."""
     n = normalize_name(name)
     if not n:
@@ -195,7 +195,7 @@ def _initials(s: str) -> str:
     """Get initials from a name part, e.g. 'Jane Marie' -> 'J M', 'John' -> 'J'."""
     if not s:
         return ""
-    return " ".join((w[0] for w in s.split() if w)).upper()
+    return " ".join(w[0] for w in s.split() if w).upper()
 
 
 def _normalize_initials(s: str) -> str:
@@ -208,7 +208,7 @@ def _normalize_initials(s: str) -> str:
     return cleaned
 
 
-def _item_family_first_variants(item_author: str) -> List[Tuple[str, str]]:
+def _item_family_first_variants(item_author: str) -> list[tuple[str, str]]:
     """
     (family, first) interpretations for an item author string.
 
@@ -272,7 +272,7 @@ def fuzzy_match_author(item_author: str, authority_name: str) -> bool:
     return False
 
 
-def get_unlinked_authors(metadata: dict) -> List[Tuple[int, dict]]:
+def get_unlinked_authors(metadata: dict) -> list[tuple[int, dict]]:
     """Return list of (index, value_obj) for dc.contributor.author where authority is null."""
     entries = metadata.get(AUTHOR_FIELD) or []
     result = []
@@ -285,12 +285,12 @@ def get_unlinked_authors(metadata: dict) -> List[Tuple[int, dict]]:
     return result
 
 
-async def fetch_entry_detail(client: DSpaceClient, vocabulary_name: str, authority_uuid: str) -> Optional[dict]:
+async def fetch_entry_detail(client: DSpaceClient, vocabulary_name: str, authority_uuid: str) -> dict | None:
     """Optionally fetch vocabulary entry detail for ORCID/display. Returns None on any error."""
     return await client.get_vocabulary_entry_detail(vocabulary_name, authority_uuid)
 
 
-def _orcid_candidate_from_plain_or_url(v: str) -> Optional[str]:
+def _orcid_candidate_from_plain_or_url(v: str) -> str | None:
     """Normalize a metadata value to an https://orcid.org/... URL when it is an ORCID."""
     v = (v or "").strip()
     if not v:
@@ -312,7 +312,7 @@ def _orcid_candidate_from_plain_or_url(v: str) -> Optional[str]:
     return None
 
 
-def extract_orcid_from_entry(entry: dict, detail: Optional[dict]) -> Optional[str]:
+def extract_orcid_from_entry(entry: dict, detail: dict | None) -> str | None:
     """Get ORCID URL from vocabulary entry or its detail if available."""
     meta = entry.get("metadata") or {}
     for key in (
@@ -347,7 +347,7 @@ def extract_orcid_from_entry(entry: dict, detail: Optional[dict]) -> Optional[st
     return None
 
 
-def _log(log_file: Optional[object], line: str) -> None:
+def _log(log_file: object | None, line: str) -> None:
     """Write a line to the log file and flush."""
     if log_file is not None:
         ts = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
@@ -366,10 +366,10 @@ def _first_metadata_value(metadata: dict, key: str) -> str:
     return str(first).strip()
 
 
-def _all_metadata_values(metadata: dict, key: str) -> List[str]:
+def _all_metadata_values(metadata: dict, key: str) -> list[str]:
     """Get all metadata values for a key as strings."""
     vals = metadata.get(key) or []
-    result: List[str] = []
+    result: list[str] = []
     if not isinstance(vals, list):
         return result
     for v in vals:
@@ -427,7 +427,7 @@ def _load_repo_checkpoint(path: str) -> dict:
     if not os.path.exists(path):
         return {}
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
             if isinstance(data, dict):
                 return data
@@ -462,7 +462,7 @@ def _load_attempt_state(path: str) -> dict[str, datetime]:
     if not os.path.exists(path):
         return state
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -501,7 +501,7 @@ def _should_process_uuid(
     mode: str,
     state: dict[str, datetime],
     now: datetime,
-    min_age_days: Optional[int],
+    min_age_days: int | None,
 ) -> bool:
     """
     Decide whether to process a given item UUID based on incremental state.
@@ -531,9 +531,9 @@ async def discover_item_uuids_newest_first(
     password: str,
     throttle: ThrottleController,
     page_size: int = 100,
-) -> List[str]:
+) -> list[str]:
     """Discover all item UUIDs via discovery API, newest first. Paginates until no more results."""
-    uuids: List[str] = []
+    uuids: list[str] = []
     page = 0
     while True:
         results = await _throttled_call(
@@ -573,7 +573,7 @@ async def _fetch_discovery_page_item_uuids(
     throttle: ThrottleController,
     page: int,
     page_size: int = 100,
-) -> Tuple[List[str], Optional[int]]:
+) -> tuple[list[str], int | None]:
     """Fetch one discovery page and return (uuids, totalElements if present)."""
     results = await _throttled_call(
         auth,
@@ -598,7 +598,7 @@ async def _fetch_discovery_page_item_uuids(
         if isinstance(total_val, int):
             total_elements = total_val
 
-    uuids: List[str] = []
+    uuids: list[str] = []
     for obj in objects:
         indexable = (obj.get("_embedded") or {}).get("indexableObject", {})
         uuid_val = indexable.get("uuid")
@@ -616,7 +616,7 @@ def _valid_orcid_compact(compact: str) -> bool:
     )
 
 
-def _compact_from_hyphenated(h: str) -> Optional[str]:
+def _compact_from_hyphenated(h: str) -> str | None:
     h = (h or "").strip()
     if not _ORCID_SEGMENT.match(h):
         return None
@@ -624,7 +624,7 @@ def _compact_from_hyphenated(h: str) -> Optional[str]:
     return c if _valid_orcid_compact(c) else None
 
 
-def normalize_orcid_identifier(raw: str) -> Optional[str]:
+def normalize_orcid_identifier(raw: str) -> str | None:
     """
     Parse user ORCID input into canonical 16-character form (digits + optional trailing X).
 
@@ -642,7 +642,7 @@ def normalize_orcid_identifier(raw: str) -> Optional[str]:
             return c
 
     url_candidate = s
-    if not re.match(r"^[a-z][a-z0-9+.-]*://", s, re.I):
+    if not re.match(r"^[a-z][a-z0-9+.-]*://", s, re.IGNORECASE):
         low = s.lower()
         if low.startswith("www.orcid.org/") or low.startswith("orcid.org/"):
             url_candidate = "https://" + s
@@ -690,7 +690,7 @@ def normalize_orcid_identifier(raw: str) -> Optional[str]:
     return None
 
 
-def orcid_hyphenated_from_compact(compact: str) -> Optional[str]:
+def orcid_hyphenated_from_compact(compact: str) -> str | None:
     """Build 0000-0000-0000-000X from canonical 16-char ORCID."""
     if not _valid_orcid_compact(compact):
         return None
@@ -706,7 +706,7 @@ async def resolve_authority_by_orcid(
     password: str,
     throttle: ThrottleController,
     max_pages: int = 20,
-) -> Optional[Tuple[str, str]]:
+) -> tuple[str, str] | None:
     """
     Resolve an ORCID id to a local authority (authority_uuid, display_name).
 
@@ -719,12 +719,12 @@ async def resolve_authority_by_orcid(
         return None
     orcid_hyphenated = orcid_hyphenated_from_compact(orcid_digits)
 
-    async def _try_match_in_entries(entries: List[dict]) -> Optional[Tuple[str, str]]:
+    async def _try_match_in_entries(entries: list[dict]) -> tuple[str, str] | None:
         for e in entries:
             if not isinstance(e, dict) or not e.get("authority"):
                 continue
             extracted = extract_orcid_from_entry(e, None)
-            detail: Optional[dict] = None
+            detail: dict | None = None
             if not extracted:
                 detail = await fetch_entry_detail(
                     client, vocabulary_name, e.get("authority", "")
@@ -737,8 +737,8 @@ async def resolve_authority_by_orcid(
         return None
 
     async def _fetch_entries_filtered(
-        filter_term: Optional[str], page: int
-    ) -> List[dict]:
+        filter_term: str | None, page: int
+    ) -> list[dict]:
         resp = await _throttled_call(
             auth,
             client,
@@ -755,7 +755,7 @@ async def resolve_authority_by_orcid(
         )
         return (resp.get("_embedded") or {}).get("entries") or []
 
-    async def _fetch_entries_by_entry_id(entry_id: str) -> List[dict]:
+    async def _fetch_entries_by_entry_id(entry_id: str) -> list[dict]:
         resp = await _throttled_call(
             auth,
             client,
@@ -820,12 +820,12 @@ async def discover_item_uuids_by_author(
     throttle: ThrottleController,
     author_name: str,
     page_size: int = 100,
-) -> List[str]:
+) -> list[str]:
     """
     Discover item UUIDs that have the given author (Discovery API author filter).
     Uses the documented f.author=<value>,contains filter per search-endpoint.md.
     """
-    uuids: List[str] = []
+    uuids: list[str] = []
     page = 0
     while True:
         results = await _throttled_call(
@@ -868,10 +868,10 @@ async def process_item(
     vocabulary_name: str,
     auto_link_single: bool,
     use_fuzzy: bool,
-    log_file: Optional[object],
-    target_authority: Optional[Tuple[str, str]] = None,
-    filter_author_name: Optional[str] = None,
-) -> Tuple[int, int, int]:
+    log_file: object | None,
+    target_authority: tuple[str, str] | None = None,
+    filter_author_name: str | None = None,
+) -> tuple[int, int, int]:
     """
     Process one item: find unlinked authors, match to local authority, optionally prompt, PATCH.
     use_fuzzy: if True, allow abbreviated first names (e.g. "Smith, J." matches "Smith, John").
@@ -1041,7 +1041,7 @@ async def process_item(
                     e
                     for e in entries
                     if isinstance(e, dict)
-                    and normalize_name((e.get("display") or e.get("value") or "")) == normalized
+                    and normalize_name(e.get("display") or e.get("value") or "") == normalized
                     and e.get("authority")
                 ]
         except AuthenticationError as e:
@@ -1071,7 +1071,7 @@ async def process_item(
             continue
 
         # Decide which authority entry to use.
-        selected_entry: Optional[dict] = None
+        selected_entry: dict | None = None
 
         if len(matching) > 1:
             # Multiple possible matches: always require explicit user choice.
@@ -1329,9 +1329,9 @@ async def main() -> None:
         console.print("[red]Please enter I, R, O, or N.[/red]")
 
     run_mode = "force"
-    min_age_days: Optional[int] = None
+    min_age_days: int | None = None
     repository_resume = False
-    max_items_this_run: Optional[int] = None
+    max_items_this_run: int | None = None
     if run_mode_key == "repository":
         mode_input = console.input(
             "[bold cyan]Run mode[/bold cyan] "
@@ -1449,7 +1449,7 @@ async def main() -> None:
             page_size = 100
             page = start_page
             global_seen = 0
-            discovered_total: Optional[int] = None
+            discovered_total: int | None = None
             hit_run_limit = False
 
             while True:
@@ -1626,7 +1626,7 @@ async def main() -> None:
                 orcid_opt = console.input(
                     "[bold cyan]Optional: ORCID id to link to[/bold cyan] [dim](press Enter to skip):[/dim] "
                 ).strip()
-                target_authority: Optional[Tuple[str, str]] = None
+                target_authority: tuple[str, str] | None = None
                 if orcid_opt:
                     if not normalize_orcid_identifier(orcid_opt):
                         console.print(

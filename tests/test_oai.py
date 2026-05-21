@@ -1,27 +1,23 @@
 """Tests for OAI-PMH client, dc:format parsing, and PDF count cache."""
 
-import csv
 import tempfile
-from pathlib import Path
-from unittest.mock import AsyncMock, patch
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 import pytest
 
+from dspace_client.exceptions import OAIError
 from dspace_client.oai import (
-    NS,
     OAIClient,
     OAIPDFCountCache,
     OAIRecord,
-    get_dc_formats,
-    record_has_pdf,
     _check_error,
     _parse_identify,
     _parse_list_records,
     _repository_cache_id,
+    get_dc_formats,
+    record_has_pdf,
 )
-from dspace_client.exceptions import OAIError
-
 
 # --- XML parsing ---
 

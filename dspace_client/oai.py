@@ -10,12 +10,13 @@ import os
 import re
 import urllib.parse
 import xml.etree.ElementTree as ET
-from defusedxml.ElementTree import fromstring as safe_fromstring
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, List, Optional, Tuple, TypedDict
+from typing import Any, TypedDict
 
 import httpx
+from defusedxml.ElementTree import fromstring as safe_fromstring
 
 from .exceptions import OAIError
 
@@ -33,13 +34,13 @@ def _normalize_base_url(base_url: str) -> str:
     return base_url.rstrip("/")
 
 
-def _text(el: Optional[ET.Element], default: str = "") -> str:
+def _text(el: ET.Element | None, default: str = "") -> str:
     if el is None:
         return default
     return (el.text or "").strip()
 
 
-def _find_text(parent: Optional[ET.Element], path: str, default: str = "") -> str:
+def _find_text(parent: ET.Element | None, path: str, default: str = "") -> str:
     if parent is None:
         return default
     child = parent.find(path, NS)
@@ -51,9 +52,9 @@ class ResumptionToken:
     """Resumption token for paginated ListRecords/ListIdentifiers."""
 
     value: str
-    complete_list_size: Optional[int] = None
-    cursor: Optional[int] = None
-    expiration_date: Optional[str] = None
+    complete_list_size: int | None = None
+    cursor: int | None = None
+    expiration_date: str | None = None
 
 
 @dataclass
@@ -62,16 +63,16 @@ class OAIRecord:
 
     identifier: str
     datestamp: str
-    status: Optional[str] = None  # "deleted" or None
-    metadata: Optional[ET.Element] = None  # raw metadata element for parsing by caller
+    status: str | None = None  # "deleted" or None
+    metadata: ET.Element | None = None  # raw metadata element for parsing by caller
 
 
 @dataclass
 class ListRecordsResult:
     """One page of ListRecords response."""
 
-    records: List[OAIRecord]
-    resumption_token: Optional[ResumptionToken] = None
+    records: list[OAIRecord]
+    resumption_token: ResumptionToken | None = None
 
 
 @dataclass
@@ -81,11 +82,11 @@ class IdentifyResult:
     repository_name: str = ""
     base_url: str = ""
     protocol_version: str = ""
-    admin_emails: List[str] = field(default_factory=list)
+    admin_emails: list[str] = field(default_factory=list)
     earliest_datestamp: str = ""
     deleted_record: str = ""  # no, persistent, transient
     granularity: str = ""  # YYYY-MM-DD or YYYY-MM-DDThh:mm:ssZ
-    raw: Dict[str, Any] = field(default_factory=dict)
+    raw: dict[str, Any] = field(default_factory=dict)
 
 
 def _check_error(root: ET.Element) -> None:
@@ -114,7 +115,7 @@ def _parse_identify(root: ET.Element) -> IdentifyResult:
     )
 
 
-def _parse_list_metadata_formats(root: ET.Element) -> List[Dict[str, str]]:
+def _parse_list_metadata_formats(root: ET.Element) -> list[dict[str, str]]:
     _check_error(root)
     fmt_list = root.find("oai:ListMetadataFormats", NS)
     if fmt_list is None:
@@ -129,7 +130,7 @@ def _parse_list_metadata_formats(root: ET.Element) -> List[Dict[str, str]]:
     return result
 
 
-def _parse_resumption_token(el: Optional[ET.Element]) -> Optional[ResumptionToken]:
+def _parse_resumption_token(el: ET.Element | None) -> ResumptionToken | None:
     if el is None or not (el.text and el.text.strip()):
         return None
     try:
@@ -165,7 +166,7 @@ def _parse_list_records(root: ET.Element) -> ListRecordsResult:
         records.append(OAIRecord(
             identifier=identifier,
             datestamp=datestamp,
-            status=status if status else None,
+            status=status or None,
             metadata=metadata_el,
         ))
     res_el = list_records.find("oai:resumptionToken", NS)
@@ -183,7 +184,7 @@ class OAIClient:
         self,
         base_url: str,
         timeout: float = 60.0,
-        http_client: Optional[httpx.AsyncClient] = None,
+        http_client: httpx.AsyncClient | None = None,
     ):
         self.base_url = _normalize_base_url(base_url)
         self.oai_url = f"{self.base_url}{OAI_PATH}"
@@ -204,20 +205,20 @@ class OAIClient:
     async def __aenter__(self) -> "OAIClient":
         return self
 
-    async def __aexit__(self, *args: Any) -> None:
+    async def __aexit__(self, *args: object) -> None:
         await self.close()
 
     def _build_url(
         self,
         verb: str,
-        metadata_prefix: Optional[str] = None,
-        identifier: Optional[str] = None,
-        from_: Optional[str] = None,
-        until: Optional[str] = None,
-        set_spec: Optional[str] = None,
-        resumption_token: Optional[str] = None,
+        metadata_prefix: str | None = None,
+        identifier: str | None = None,
+        from_: str | None = None,
+        until: str | None = None,
+        set_spec: str | None = None,
+        resumption_token: str | None = None,
     ) -> str:
-        params: List[Tuple[str, str]] = [("verb", verb)]
+        params: list[tuple[str, str]] = [("verb", verb)]
         if resumption_token:
             params.append(("resumptionToken", resumption_token))
         else:
@@ -249,8 +250,8 @@ class OAIClient:
 
     async def list_metadata_formats(
         self,
-        identifier: Optional[str] = None,
-    ) -> List[Dict[str, str]]:
+        identifier: str | None = None,
+    ) -> list[dict[str, str]]:
         """Request ListMetadataFormats; optional identifier for one item."""
         url = self._build_url(
             "ListMetadataFormats",
@@ -262,10 +263,10 @@ class OAIClient:
     async def list_records_page(
         self,
         metadata_prefix: str,
-        from_: Optional[str] = None,
-        until: Optional[str] = None,
-        set_spec: Optional[str] = None,
-        resumption_token: Optional[str] = None,
+        from_: str | None = None,
+        until: str | None = None,
+        set_spec: str | None = None,
+        resumption_token: str | None = None,
     ) -> ListRecordsResult:
         """Fetch one page of ListRecords. Call repeatedly with resumption_token until none."""
         if resumption_token:
@@ -284,12 +285,12 @@ class OAIClient:
     async def list_records(
         self,
         metadata_prefix: str = "oai_dc",
-        from_: Optional[str] = None,
-        until: Optional[str] = None,
-        set_spec: Optional[str] = None,
+        from_: str | None = None,
+        until: str | None = None,
+        set_spec: str | None = None,
     ) -> AsyncIterator[OAIRecord]:
         """Iterate over all records (all pages via resumptionToken)."""
-        token: Optional[str] = None
+        token: str | None = None
         while True:
             page = await self.list_records_page(
                 metadata_prefix=metadata_prefix,
@@ -310,7 +311,7 @@ class OAIClient:
 PDF_MIME = "application/pdf"
 
 
-def get_dc_formats(metadata_el: Optional[ET.Element]) -> List[str]:
+def get_dc_formats(metadata_el: ET.Element | None) -> list[str]:
     """Extract all dc:format values from an oai_dc metadata element."""
     if metadata_el is None:
         return []
@@ -323,7 +324,7 @@ def get_dc_formats(metadata_el: Optional[ET.Element]) -> List[str]:
                 break
         if dc_container is None:
             dc_container = metadata_el
-    formats: List[str] = []
+    formats: list[str] = []
     for fmt_el in dc_container.findall(".//dc:format", NS):
         val = _text(fmt_el)
         if val:
@@ -357,9 +358,9 @@ class OAIRecordParsed(TypedDict):
 
 async def iterate_oai_dc_records(
     client: OAIClient,
-    from_: Optional[str] = None,
-    until: Optional[str] = None,
-    set_spec: Optional[str] = None,
+    from_: str | None = None,
+    until: str | None = None,
+    set_spec: str | None = None,
 ) -> AsyncIterator[OAIRecordParsed]:
     """Async iterator over ListRecords (oai_dc) yielding parsed { identifier, datestamp, has_pdf }."""
     async for record in client.list_records(
@@ -379,10 +380,10 @@ async def iterate_oai_dc_records(
 
 async def count_items_with_pdf_via_oai(
     client: OAIClient,
-    from_: Optional[str] = None,
-    until: Optional[str] = None,
-    set_spec: Optional[str] = None,
-) -> Dict[str, int]:
+    from_: str | None = None,
+    until: str | None = None,
+    set_spec: str | None = None,
+) -> dict[str, int]:
     """Harvest all oai_dc records and return total_items and with_pdf counts."""
     total = 0
     with_pdf = 0
@@ -419,15 +420,15 @@ class OAIPDFCountCache:
     def __init__(
         self,
         base_url: str,
-        cache_dir: Optional[Path] = None,
+        cache_dir: Path | None = None,
     ):
         self.base_url = _normalize_base_url(base_url)
         self._repo_id = _repository_cache_id(self.base_url)
         self._cache_dir = Path(cache_dir) if cache_dir else Path.home() / ".cache" / "dspace-oai-pdf"
         self._cache_path = self._cache_dir / f"{self.CACHE_FILENAME_PREFIX}{self._repo_id}.csv"
         self._last_until_path = self._cache_dir / f"{self.CACHE_FILENAME_PREFIX}{self._repo_id}_{self.LAST_UNTIL_FILENAME}"
-        self._data: Dict[str, Dict[str, Any]] = {}  # identifier -> { datestamp, has_pdf }
-        self._last_until: Optional[str] = None
+        self._data: dict[str, dict[str, Any]] = {}  # identifier -> { datestamp, has_pdf }
+        self._last_until: str | None = None
 
     def _ensure_dir(self) -> None:
         self._cache_dir.mkdir(parents=True, exist_ok=True)
@@ -459,7 +460,7 @@ class OAIPDFCountCache:
             except (json.JSONDecodeError, OSError):
                 pass
 
-    def get(self, identifier: str) -> Optional[Dict[str, Any]]:
+    def get(self, identifier: str) -> dict[str, Any] | None:
         """Return cached { datestamp, has_pdf } for identifier, or None."""
         return self._data.get(identifier)
 
@@ -467,7 +468,7 @@ class OAIPDFCountCache:
         """Update or insert cache entry for identifier."""
         self._data[identifier] = {"datestamp": datestamp, "has_pdf": has_pdf}
 
-    def save(self, last_until: Optional[str] = None) -> None:
+    def save(self, last_until: str | None = None) -> None:
         """Write cache CSV and optionally update last_until in JSON sidecar atomically."""
         self._ensure_dir()
         if last_until is not None:
@@ -489,18 +490,18 @@ class OAIPDFCountCache:
                 json.dump({"last_until": self._last_until}, f, indent=0)
             os.replace(tmp_json, self._last_until_path)
 
-    def totals(self) -> Tuple[int, int]:
+    def totals(self) -> tuple[int, int]:
         """Return (total_count, with_pdf_count) from current in-memory cache."""
         total = len(self._data)
         with_pdf = sum(1 for e in self._data.values() if e.get("has_pdf"))
         return total, with_pdf
 
     @property
-    def last_until(self) -> Optional[str]:
+    def last_until(self) -> str | None:
         return self._last_until
 
     @last_until.setter
-    def last_until(self, value: Optional[str]) -> None:
+    def last_until(self, value: str | None) -> None:
         self._last_until = value
 
     @property

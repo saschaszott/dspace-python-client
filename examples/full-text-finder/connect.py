@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Callable, List, Optional, Tuple, Union
+from collections.abc import Callable
 
 from dspace_client import DSpaceAuthClient, DSpaceClient
 
@@ -13,13 +13,13 @@ async def connect_fulltext_client(
     base_url: str,
     username: str,
     password: str,
-    target_versions: Union[str, List[str]],
+    target_versions: str | list[str],
     *,
     strict_versions: bool = False,
     courtesy_delay: float = 0.0,
     slow_request_threshold_seconds: float = 5.0,
-    slow_request_callback: Optional[Callable[[str, str, float], None]] = None,
-) -> Tuple[DSpaceAuthClient, DSpaceClient]:
+    slow_request_callback: Callable[[str, str, float], None] | None = None,
+) -> tuple[DSpaceAuthClient, DSpaceClient]:
     auth = DSpaceAuthClient(base_url, timeout=HTTP_TIMEOUT)
     jwt, _status = await auth.authenticate(username, password)
 
@@ -41,4 +41,4 @@ async def connect_fulltext_client(
     return auth, client
 
 
-__all__ = ["connect_fulltext_client", "HTTP_TIMEOUT"]
+__all__ = ["HTTP_TIMEOUT", "connect_fulltext_client"]

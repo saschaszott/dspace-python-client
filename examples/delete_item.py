@@ -3,11 +3,14 @@
 import asyncio
 import getpass
 import uuid as uuid_mod
-from typing import Optional
 
 from rich.console import Console
 
-from dspace_client import create_validated_client, ServerVersionMismatchError, show_script_attribution
+from dspace_client import (
+    ServerVersionMismatchError,
+    create_validated_client,
+    show_script_attribution,
+)
 from dspace_client.exceptions import DSpaceAPIError
 
 # DEVELOPER DECLARES: DSpace 7.x (use "7.0" so all 7.y minors match; see dspace_client.version.VersionCompatibility.SUPPORTED_VERSIONS)
@@ -19,7 +22,7 @@ console = Console()
 VERIFY_WAIT_SECONDS = 10
 
 
-def _extract_dc_title(item: dict) -> Optional[str]:
+def _extract_dc_title(item: dict) -> str | None:
     """First dc.title value, or None if absent/empty."""
     meta = item.get("metadata") or {}
     for row in meta.get("dc.title") or []:

@@ -4,30 +4,28 @@ import asyncio
 import logging
 import re
 import time
+from collections.abc import Callable
+from typing import Any
 
 import httpx
 import orjson
-from typing import Any, Optional, Union, List, Callable
-from pathlib import Path
 from rich.console import Console
 from tenacity import (
     AsyncRetrying,
+    retry_if_exception,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception,
 )
 
+from .concurrency import AdaptiveDelayConfig, AdaptiveDelayController
+from .docs import RestContractFetcher
 from .exceptions import (
     AuthenticationError,
     DSpaceAPIError,
     ServerVersionMismatchError,
-    VersionIncompatibilityError,
 )
-from .version import VersionCompatibility
-from .docs import RestContractFetcher
-from .concurrency import AdaptiveDelayController, AdaptiveDelayConfig
-
 from .rest_pdf_cache import RestPDFCountCache
+from .version import VersionCompatibility
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -46,19 +44,19 @@ def should_retry_request(exception: BaseException) -> bool:
 
 class DSpaceClient:
     """Client for DSpace REST API operations with version validation."""
-    
+
     def __init__(
         self,
         base_url: str,
-        jwt_token: Optional[str] = None,
-        csrf_token: Optional[str] = None,
-        http_client: Optional[httpx.AsyncClient] = None,
-        target_versions: Union[str, List[str]] = "bleeding-edge",
+        jwt_token: str | None = None,
+        csrf_token: str | None = None,
+        http_client: httpx.AsyncClient | None = None,
+        target_versions: str | list[str] = "bleeding-edge",
         timeout: float = 30.0,
         max_retries: int = 3,
         courtesy_delay: float = 1.0,
         slow_request_threshold_seconds: float = 5.0,
-        slow_request_callback: Optional[Callable[[str, str, float], None]] = None,
+        slow_request_callback: Callable[[str, str, float], None] | None = None,
     ):
         """
         Initialize DSpace API client with version compatibility checking.
@@ -126,16 +124,16 @@ class DSpaceClient:
         self._last_request_time = 0.0
         self.slow_request_threshold_seconds = slow_request_threshold_seconds
         self.slow_request_callback = slow_request_callback
-        
+
         # Initialize version compatibility system
         self.validator = VersionCompatibility(target_versions)
         self.docs_fetcher = RestContractFetcher()
         self.target_versions = target_versions if isinstance(target_versions, list) else [target_versions]
         #: Last result of :meth:`detect_dspace_version` (also set when called from ``verify_server_version``).
-        self._last_detected_server_version: Optional[str] = None
+        self._last_detected_server_version: str | None = None
 
         console.print(f"[dim]Initializing DSpace client for versions: {target_versions}[/dim]")
-    
+
     def _get_headers(self, include_csrf: bool = False) -> dict[str, str]:
         """
         Get standard headers for API requests.
@@ -170,8 +168,8 @@ class DSpaceClient:
         self,
         method: str,
         endpoint: str,
-        json_data: Optional[dict] = None,
-        params: Optional[dict] = None,
+        json_data: dict | None = None,
+        params: dict | None = None,
         *,
         method_name: str,
     ) -> httpx.Response:
@@ -276,14 +274,14 @@ class DSpaceClient:
         async for attempt in retrying:
             with attempt:
                 return await _dispatch()
-    
+
     # ========== Communities ==========
-    
+
     async def create_community(
         self,
         name: str,
-        metadata: Optional[dict] = None,
-        parent_uuid: Optional[str] = None,
+        metadata: dict | None = None,
+        parent_uuid: str | None = None,
     ) -> dict:
         """
         Create a community.
@@ -298,34 +296,34 @@ class DSpaceClient:
         """
         if metadata is None:
             metadata = {}
-        
+
         # Ensure dc.title is set
         if "dc.title" not in metadata:
             metadata["dc.title"] = [{"value": name, "language": None, "authority": None, "confidence": -1}]
-        
+
         payload = {
             "name": name,
             "metadata": metadata,
         }
-        
+
         endpoint = "core/communities"
         if parent_uuid:
             endpoint = f"{endpoint}?parent={parent_uuid}"
-        
+
         response = await self._request("POST", endpoint, json_data=payload, method_name="create_community")
         return response.json()
-    
+
     async def delete_community(self, uuid: str) -> None:
         """Delete a community by UUID."""
         await self._request("DELETE", f"core/communities/{uuid}", method_name="delete_community")
-    
+
     # ========== Collections ==========
-    
+
     async def create_collection(
         self,
         name: str,
         parent_community_uuid: str,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> dict:
         """
         Create a collection.
@@ -340,16 +338,16 @@ class DSpaceClient:
         """
         if metadata is None:
             metadata = {}
-        
+
         # Ensure dc.title is set
         if "dc.title" not in metadata:
             metadata["dc.title"] = [{"value": name, "language": None, "authority": None, "confidence": -1}]
-        
+
         payload = {
             "name": name,
             "metadata": metadata,
         }
-        
+
         response = await self._request(
             "POST",
             f"core/collections?parent={parent_community_uuid}",
@@ -357,18 +355,18 @@ class DSpaceClient:
             method_name="create_collection",
         )
         return response.json()
-    
+
     async def delete_collection(self, uuid: str) -> None:
         """Delete a collection by UUID."""
         await self._request("DELETE", f"core/collections/{uuid}", method_name="delete_collection")
-    
+
     # ========== Items ==========
-    
+
     async def create_item(
         self,
         name: str,
         owning_collection_uuid: str,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> dict:
         """
         Create an item (archived, bypassing workflow).
@@ -383,11 +381,11 @@ class DSpaceClient:
         """
         if metadata is None:
             metadata = {}
-        
+
         # Ensure dc.title is set
         if "dc.title" not in metadata:
             metadata["dc.title"] = [{"value": name, "language": None, "authority": None, "confidence": -1}]
-        
+
         payload = {
             "name": name,
             "metadata": metadata,
@@ -396,7 +394,7 @@ class DSpaceClient:
             "withdrawn": False,
             "type": "item",
         }
-        
+
         response = await self._request(
             "POST",
             f"core/items?owningCollection={owning_collection_uuid}",
@@ -404,13 +402,13 @@ class DSpaceClient:
             method_name="create_item",
         )
         return response.json()
-    
+
     async def delete_item(self, uuid: str) -> None:
         """Delete an item by UUID."""
         await self._request("DELETE", f"core/items/{uuid}", method_name="delete_item")
-    
+
     # ========== Bundles ==========
-    
+
     async def create_bundle(self, item_uuid: str, name: str = "ORIGINAL") -> dict:
         """
         Create a bundle in an item.
@@ -426,7 +424,7 @@ class DSpaceClient:
             "name": name,
             "metadata": {},
         }
-        
+
         response = await self._request(
             "POST",
             f"core/items/{item_uuid}/bundles",
@@ -434,15 +432,15 @@ class DSpaceClient:
             method_name="create_bundle",
         )
         return response.json()
-    
+
     # ========== Bitstreams ==========
-    
+
     async def upload_bitstream(
         self,
         bundle_uuid: str,
         filename: str,
         content: bytes,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> dict:
         """
         Upload a bitstream to a bundle.
@@ -461,30 +459,19 @@ class DSpaceClient:
 
         if metadata is None:
             metadata = {}
-        
+
         # Ensure dc.title is set
         if "dc.title" not in metadata:
             metadata["dc.title"] = [{"value": filename, "language": None, "authority": None, "confidence": -1}]
-        
-        # Debug logging (commented out - uncomment if debugging)
-        # console.print(f"\n[dim]→ POST {url} (multipart upload)[/dim]")
-        # console.print(f"[dim]  Headers:[/dim]")
-        # console.print(f"[dim]    Authorization: Bearer {self.jwt_token[:20]}...[/dim]")
-        # console.print(f"[dim]    X-XSRF-TOKEN: {self.csrf_token[:20]}...[/dim]")
-        # console.print(f"[dim]  Cookies in client jar:[/dim]")
-        # for cookie in self.client.cookies.jar:
-        #     console.print(f"[dim]    {cookie.name} = {cookie.value[:20]}...[/dim]")
-        # console.print(f"[dim]  File: {filename} ({len(content)} bytes)[/dim]")
-        
+
         try:
-            # Upload as multipart/form-data using the authenticated client
             files = {"file": (filename, content, "application/octet-stream")}
-            
+
             # Add metadata as form fields if needed
             data = {}
             if metadata:
                 data["metadata"] = orjson.dumps(metadata).decode()
-            
+
             # Use the persistent authenticated client with CSRF token
             response = await self.client.post(
                 url,
@@ -495,23 +482,23 @@ class DSpaceClient:
                 files=files,
                 data=data,
             )
-            
-            # console.print(f"[dim]← Status: {response.status_code}[/dim]")
-            
+
             if response.status_code >= 400:
-                console.print(f"[red]Error response:[/red]")
-                console.print(f"[red]  Status: {response.status_code}[/red]")
-                console.print(f"[red]  Body: {response.text[:500]}[/red]")
+                logger.warning(
+                    "Bitstream upload failed: status=%s body_preview=%r",
+                    response.status_code,
+                    response.text[:500],
+                )
                 raise DSpaceAPIError(
                     f"Bitstream upload failed with status {response.status_code}: {response.text}",
                     status_code=response.status_code,
                 )
-            
+
             return response.json()
-        
+
         except httpx.RequestError as e:
             raise DSpaceAPIError(f"Bitstream upload request failed: {e}")
-    
+
     async def delete_bitstream(self, uuid: str) -> None:
         """Delete a bitstream by UUID."""
         await self._request("DELETE", f"core/bitstreams/{uuid}", method_name="delete_bitstream")
@@ -599,12 +586,12 @@ class DSpaceClient:
         return response.json()
 
     # ========== Statistics ==========
-    
+
     async def create_item_view(
         self,
         target_uuid: str,
         target_type: str = "item",
-        referrer: Optional[str] = None,
+        referrer: str | None = None,
     ) -> dict:
         """
         Create a view event for an item.
@@ -623,17 +610,17 @@ class DSpaceClient:
             "targetId": target_uuid,
             "targetType": target_type,
         }
-        
+
         if referrer:
             payload["referrer"] = referrer
-        
+
         response = await self._request(
             "POST", "statistics/viewevents", json_data=payload, method_name="create_item_view"
         )
         return response.json()
-    
+
     # ========== EPeople ==========
-    
+
     async def create_eperson(
         self,
         email: str,
@@ -673,16 +660,16 @@ class DSpaceClient:
             "requireCertificate": False,
             "type": "eperson"
         }
-        
+
         response = await self._request(
             "POST", "eperson/epersons", json_data=payload, method_name="create_eperson"
         )
         return response.json()
-    
+
     async def delete_eperson(self, uuid: str) -> None:
         """Delete an EPerson by UUID."""
         await self._request("DELETE", f"eperson/epersons/{uuid}", method_name="delete_eperson")
-    
+
     async def add_eperson_to_group(
         self,
         group_uuid: str,
@@ -699,7 +686,7 @@ class DSpaceClient:
         """
         self._require_auth("add_eperson_to_group")
         url = f"{self.base_url}/server/api/eperson/groups/{group_uuid}/epersons"
-        
+
         try:
             response = await self.client.post(
                 url,
@@ -710,19 +697,19 @@ class DSpaceClient:
                 },
                 content=f"{self.base_url}/server/api/eperson/epersons/{eperson_uuid}",
             )
-            
+
             if response.status_code >= 400:
                 raise DSpaceAPIError(
                     f"Add EPerson to group failed with status {response.status_code}: {response.text}",
                     status_code=response.status_code,
                 )
-        
+
         except httpx.RequestError as e:
             raise DSpaceAPIError(f"Add EPerson to group request failed: {e}")
-    
+
     # ========== EPerson Groups ==========
-    
-    async def create_group(self, name: str, description: Optional[str] = None) -> dict:
+
+    async def create_group(self, name: str, description: str | None = None) -> dict:
         """
         Create an EPerson group.
         
@@ -738,22 +725,22 @@ class DSpaceClient:
             metadata["dc.description"] = [
                 {"value": description, "language": None, "authority": None, "confidence": -1}
             ]
-        
+
         payload = {
             "name": name,
             "metadata": metadata,
         }
-        
+
         response = await self._request(
             "POST", "eperson/groups", json_data=payload, method_name="create_group"
         )
         return response.json()
-    
+
     async def delete_group(self, uuid: str) -> None:
         """Delete a group by UUID."""
         await self._request("DELETE", f"eperson/groups/{uuid}", method_name="delete_group")
-    
-    async def search_group_by_name(self, name: str) -> Optional[dict]:
+
+    async def search_group_by_name(self, name: str) -> dict | None:
         """
         Search for a group by name.
         
@@ -772,18 +759,18 @@ class DSpaceClient:
             params={"query": name},
             method_name="search_group_by_name",
         )
-        
+
         data = response.json()
         groups = data.get("_embedded", {}).get("groups", [])
-        
+
         # Look for exact name match
         for group in groups:
             if group.get("name") == name:
                 return group
-        
+
         return None
-    
-    async def find_or_create_group(self, name: str, description: Optional[str] = None) -> dict:
+
+    async def find_or_create_group(self, name: str, description: str | None = None) -> dict:
         """
         Find existing group by name, or create if it doesn't exist.
         
@@ -800,10 +787,10 @@ class DSpaceClient:
         existing = await self.search_group_by_name(name)
         if existing:
             return existing
-        
+
         # Create new group if not found
         return await self.create_group(name, description)
-    
+
     async def add_subgroup_to_group(
         self,
         parent_group_uuid: str,
@@ -821,7 +808,7 @@ class DSpaceClient:
         """
         self._require_auth("add_subgroup_to_group")
         url = f"{self.base_url}/server/api/eperson/groups/{parent_group_uuid}/subgroups"
-        
+
         try:
             response = await self.client.post(
                 url,
@@ -832,22 +819,22 @@ class DSpaceClient:
                 },
                 content=f"{self.base_url}/server/api/eperson/groups/{subgroup_uuid}",
             )
-            
+
             if response.status_code >= 400:
                 raise DSpaceAPIError(
                     f"Add subgroup failed with status {response.status_code}: {response.text}",
                     status_code=response.status_code,
                 )
-        
+
         except httpx.RequestError as e:
             raise DSpaceAPIError(f"Add subgroup request failed: {e}")
-    
+
     # ========== Collection Default Groups ==========
-    
+
     async def create_collection_item_read_group(
         self,
         collection_uuid: str,
-        description: Optional[str] = None,
+        description: str | None = None,
     ) -> dict:
         """
         Create the default item READ group for a collection.
@@ -878,7 +865,7 @@ class DSpaceClient:
             ]
 
         url = f"{self.base_url}/server/api/core/collections/{collection_uuid}/itemReadGroup"
-        
+
         try:
             response = await self.client.post(
                 url,
@@ -889,22 +876,22 @@ class DSpaceClient:
                 },
                 json=payload,
             )
-            
+
             if response.status_code >= 400:
                 raise DSpaceAPIError(
                     f"Create collection item read group failed with status {response.status_code}: {response.text}",
                     status_code=response.status_code,
                 )
-            
+
             return response.json()
-        
+
         except httpx.RequestError as e:
             raise DSpaceAPIError(f"Create collection item read group request failed: {e}")
-    
+
     async def create_collection_bitstream_read_group(
         self,
         collection_uuid: str,
-        description: Optional[str] = None,
+        description: str | None = None,
     ) -> dict:
         """
         Create the default bitstream READ group for a collection.
@@ -935,7 +922,7 @@ class DSpaceClient:
             ]
 
         url = f"{self.base_url}/server/api/core/collections/{collection_uuid}/bitstreamReadGroup"
-        
+
         try:
             response = await self.client.post(
                 url,
@@ -946,28 +933,28 @@ class DSpaceClient:
                 },
                 json=payload,
             )
-            
+
             if response.status_code >= 400:
                 raise DSpaceAPIError(
                     f"Create collection bitstream read group failed with status {response.status_code}: {response.text}",
                     status_code=response.status_code,
                 )
-            
+
             return response.json()
-        
+
         except httpx.RequestError as e:
             raise DSpaceAPIError(f"Create collection bitstream read group request failed: {e}")
-    
+
     # ========== Search and Discovery ==========
-    
+
     async def search_items(
         self,
-        query: Optional[str] = None,
-        filters: Optional[dict] = None,
-        sort: str = "dc.date.accessioned,desc",
+        query: str | None = None,
+        filters: dict | None = None,
+        sort: str | None = "dc.date.accessioned,desc",
         page: int = 0,
         size: int = 20,
-        configuration: Optional[str] = None,
+        configuration: str | None = None,
     ) -> dict:
         """
         Search for items using the discovery endpoint.
@@ -976,7 +963,7 @@ class DSpaceClient:
             query: Search query string (Solr/Lucene syntax)
             filters: Dict of filter_name: (value, operator) pairs
                 e.g., {"submitter": ("uuid-here", "authority")}
-            sort: Sort parameter (e.g., "dc.date.accessioned,desc")
+            sort: Sort parameter (e.g., "dc.date.accessioned,desc"). Pass ``None`` to omit.
             page: Page number
             size: Page size (max 100)
             configuration: Discovery configuration name (e.g., "workflow")
@@ -984,34 +971,41 @@ class DSpaceClient:
         Returns:
             Search results with embedded items
         """
-        params = {
+        params: dict[str, Any] = {
             "dsoType": "item",
-            "sort": sort,
             "page": page,
             "size": min(size, 100),
         }
-        
+        if sort is not None:
+            params["sort"] = sort
+
         if query:
             params["query"] = query
-        
+
         if configuration:
             params["configuration"] = configuration
-        
+
         if filters:
-            for filter_name, (value, operator) in filters.items():
+            for filter_name, filter_value in filters.items():
+                if not isinstance(filter_value, tuple) or len(filter_value) != 2:
+                    raise TypeError(
+                        f"Filter '{filter_name}' must be a (value, operator) tuple, "
+                        f"got {type(filter_value).__name__}"
+                    )
+                value, operator = filter_value
                 params[f"f.{filter_name}"] = f"{value},{operator}"
-        
+
         response = await self._request("GET", "discover/search/objects", params=params, method_name="search_items")
         return response.json()
-    
+
     async def get_item(self, uuid: str) -> dict:
         """Get full item details by UUID."""
         response = await self._request("GET", f"core/items/{uuid}", method_name="get_item")
         return response.json()
 
     async def resolve_pdf_format_id(
-        self, override_format_id: Optional[int] = None
-    ) -> Optional[int]:
+        self, override_format_id: int | None = None
+    ) -> int | None:
         """
         Resolve the bitstream format id for PDF from the registry.
 
@@ -1045,13 +1039,11 @@ class DSpaceClient:
         page_size: int = 100,
         delay_between_pages: float = 1.0,
         delay_between_items: float = 0.0,
-        progress_callback: Optional[Callable[[int, int, Optional[int]], None]] = None,
+        progress_callback: Callable[[int, int, int | None], None] | None = None,
         adaptive_delay: bool = False,
-        adaptive_delay_config: Optional[AdaptiveDelayConfig] = None,
-        debug_page_callback: Optional[
-            Callable[[int, float, float, Optional[float]], None]
-        ] = None,
-        cache: Optional[RestPDFCountCache] = None,
+        adaptive_delay_config: AdaptiveDelayConfig | None = None,
+        debug_page_callback: Callable[[int, float, float, float | None], None] | None = None,
+        cache: RestPDFCountCache | None = None,
         force_rerun: bool = False,
     ) -> dict:
         """
@@ -1083,9 +1075,9 @@ class DSpaceClient:
         total_processed = 0
         page = 0
         page_size = min(page_size, 100)
-        total_known: Optional[int] = None
+        total_known: int | None = None
 
-        delay_controller: Optional[AdaptiveDelayController] = None
+        delay_controller: AdaptiveDelayController | None = None
         if adaptive_delay:
             cfg = adaptive_delay_config or AdaptiveDelayConfig()
             # If caller explicitly set a delay_between_pages, treat it as initial
@@ -1231,17 +1223,15 @@ class DSpaceClient:
 
     async def count_items_with_pdf_bitstream(
         self,
-        pdf_format_id: Optional[int] = None,
+        pdf_format_id: int | None = None,
         page_size: int = 100,
         delay_between_pages: float = 1.0,
         delay_between_items: float = 0.0,
-        progress_callback: Optional[Callable[[int, int, Optional[int]], None]] = None,
+        progress_callback: Callable[[int, int, int | None], None] | None = None,
         adaptive_delay: bool = False,
-        adaptive_delay_config: Optional[AdaptiveDelayConfig] = None,
-        debug_page_callback: Optional[
-            Callable[[int, float, float, Optional[float]], None]
-        ] = None,
-        cache: Optional[RestPDFCountCache] = None,
+        adaptive_delay_config: AdaptiveDelayConfig | None = None,
+        debug_page_callback: Callable[[int, float, float, float | None], None] | None = None,
+        cache: RestPDFCountCache | None = None,
         force_rerun: bool = False,
     ) -> dict:
         """
@@ -1308,11 +1298,11 @@ class DSpaceClient:
     async def get_vocabulary_entries(
         self,
         vocabulary_name: str,
-        filter_term: Optional[str] = None,
+        filter_term: str | None = None,
         exact: bool = False,
         page: int = 0,
         size: int = 20,
-        entry_id: Optional[str] = None,
+        entry_id: str | None = None,
     ) -> dict:
         """
         Get entries from a controlled vocabulary (e.g. local author authority).
@@ -1346,7 +1336,7 @@ class DSpaceClient:
         )
         return response.json()
 
-    async def get_vocabulary_entry_detail(self, vocabulary_name: str, entry_id: str) -> Optional[dict]:
+    async def get_vocabulary_entry_detail(self, vocabulary_name: str, entry_id: str) -> dict | None:
         """
         Get detailed info for a vocabulary entry (e.g. for ORCID display).
 
@@ -1373,8 +1363,8 @@ class DSpaceClient:
         """Get EPerson details by UUID."""
         response = await self._request("GET", f"eperson/epersons/{uuid}", method_name="get_eperson")
         return response.json()
-    
-    async def verify_server_version(self, raise_on_mismatch: bool = True) -> Optional[str]:
+
+    async def verify_server_version(self, raise_on_mismatch: bool = True) -> str | None:
         """
         Verify that the connected server version is compatible with target_versions.
         
@@ -1406,16 +1396,16 @@ class DSpaceClient:
         )
 
         server_version = await self.detect_dspace_version()
-        
+
         if server_version is None:
             console.print("[yellow]⚠[/yellow]  Could not detect server version. Version validation skipped.")
             return None
-        
+
         is_compatible, warning_msg = VersionCompatibility.check_server_version_compatibility(
             server_version,
             self.target_versions
         )
-        
+
         if not is_compatible:
             error_msg = (
                 f"Server version {server_version} is not compatible with target version(s) "
@@ -1427,20 +1417,19 @@ class DSpaceClient:
                     target_versions=self.target_versions,
                     message=error_msg
                 )
-            else:
-                console.print(f"[red]Error:[/red] {error_msg}")
-                return None
-        
+            console.print(f"[red]Error:[/red] {error_msg}")
+            return None
+
         if warning_msg:
             console.print(f"[yellow]⚠[/yellow]  {warning_msg}")
             return warning_msg
-        
+
         # Exact match or compatible version
         target_versions_str = ", ".join(self.target_versions)
         console.print(f"[green]✓[/green]  Server version {server_version} is compatible with target version(s) {target_versions_str}")
         return None
-    
-    def _normalize_version(self, version_str: Optional[str]) -> Optional[str]:
+
+    def _normalize_version(self, version_str: str | None) -> str | None:
         """Parse version string to major.minor (e.g. 9.0.1 -> 9.0). Returns None if invalid.
 
         This is deliberately tolerant of prefixes/suffixes like ``\"DSpace 7.6\"`` by
@@ -1473,9 +1462,9 @@ class DSpaceClient:
                 return f"{major}.{minor}"
             except ValueError:
                 return f"{parts[0]}.{parts[1]}" if parts[0] and parts[1] else None
-        return version_str if version_str else None
+        return version_str or None
 
-    def _parse_version_from_json(self, data: dict) -> Optional[str]:
+    def _parse_version_from_json(self, data: dict) -> str | None:
         """Extract version from various JSON shapes (root API, actuator, etc.). Returns normalized version or None."""
         if not data or not isinstance(data, dict):
             return None
@@ -1500,11 +1489,11 @@ class DSpaceClient:
         return None
 
     @property
-    def last_detected_server_version(self) -> Optional[str]:
+    def last_detected_server_version(self) -> str | None:
         """Major.minor string from the last :meth:`detect_dspace_version` run, or ``None``."""
         return self._last_detected_server_version
 
-    def _set_last_detected_version(self, value: Optional[str]) -> Optional[str]:
+    def _set_last_detected_version(self, value: str | None) -> str | None:
         self._last_detected_server_version = value
         return value
 
@@ -1512,11 +1501,11 @@ class DSpaceClient:
         self,
         label: str,
         url: str,
-        parser: Callable[[httpx.Response], Optional[str]],
+        parser: Callable[[httpx.Response], str | None],
         *,
         headers: dict[str, str],
-        last_error: Optional[str],
-    ) -> tuple[Optional[str], Optional[str]]:
+        last_error: str | None,
+    ) -> tuple[str | None, str | None]:
         """Probe a URL for a DSpace version string. Returns (version, last_error)."""
         try:
             console.print(f"[dim]  → Probing [white]{label}[/white][/dim]")
@@ -1529,7 +1518,7 @@ class DSpaceClient:
         except (httpx.RequestError, ValueError, KeyError, orjson.JSONDecodeError) as e:
             return None, last_error or f"{label}: {e}"
 
-    async def detect_dspace_version(self) -> Optional[str]:
+    async def detect_dspace_version(self) -> str | None:
         """
         Detect the actual DSpace server version.
 
@@ -1542,9 +1531,9 @@ class DSpaceClient:
         """
         self._last_detected_server_version = None
         headers = self._get_headers(include_csrf=False)
-        last_error: Optional[str] = None
+        last_error: str | None = None
 
-        def _parse_config_property(response: httpx.Response) -> Optional[str]:
+        def _parse_config_property(response: httpx.Response) -> str | None:
             data = response.json()
             values = data.get("values") if isinstance(data, dict) else None
             if values and len(values) > 0 and values[0]:
@@ -1601,8 +1590,8 @@ class DSpaceClient:
 
         console.print(f"[dim]Warning: Could not detect server version ({last_error}). Version validation skipped.[/dim]")
         return self._set_last_detected_version(None)
-    
-    async def get_item_submitter(self, item_uuid: str) -> Optional[dict]:
+
+    async def get_item_submitter(self, item_uuid: str) -> dict | None:
         """
         Get the submitter (EPerson) for a specific item.
         
@@ -1620,20 +1609,19 @@ class DSpaceClient:
             # The submitter endpoint doesn't exist in DSpace 7
             url = f"{self.base_url}/server/api/core/items/{item_uuid}/submitter"
             headers = self._get_headers(include_csrf=False)
-            
+
             response = await self.client.get(url, headers=headers)
-            
+
             if response.status_code == 404:
                 # Endpoint doesn't exist (DSpace 7)
                 return None
-            elif response.status_code == 204:
+            if response.status_code == 204:
                 # No content - no read access or not authenticated
                 return None
-            elif response.status_code == 200:
+            if response.status_code == 200:
                 return response.json()
-            else:
-                # Other error - log and return None
-                console.print(f"[dim]Warning: submitter endpoint returned {response.status_code}[/dim]")
-                return None
+            # Other error - log and return None
+            console.print(f"[dim]Warning: submitter endpoint returned {response.status_code}[/dim]")
+            return None
         except Exception:
             return None

@@ -18,13 +18,11 @@ from __future__ import annotations
 import asyncio
 import getpass
 from pathlib import Path
-from typing import Literal, Optional, TextIO
+from typing import Literal, TextIO
+from urllib.parse import urlparse
 
 import httpx
 import typer
-from rich.console import Console
-from rich.panel import Panel
-
 from config import ExternalApiConfig, load_external_config
 from connect import connect_fulltext_client
 from download import download_full_text
@@ -37,6 +35,8 @@ from dspace_candidates import (
 from interactive import open_pdf_in_viewer, prompt_upload, write_temp_pdf
 from logging_audit import log_line, open_audit_log
 from resolve_chain import get_full_text_from_sources
+from rich.console import Console
+from rich.panel import Panel
 from upload import upload_pdf_bitstream
 
 from dspace_client import show_script_attribution
@@ -68,7 +68,7 @@ async def process_item(
     doi: str,
     title: str,
     mode_label: str,
-    log_file: Optional[TextIO],
+    log_file: TextIO | None,
     dry_run: bool,
     no_user_verify: bool,
     skip_open: bool,
@@ -109,7 +109,7 @@ async def process_item(
         log_line(log_file, f"FAIL item={item_uuid} reason=download_error detail={e!s}")
         return "failed"
 
-    temp_path: Optional[Path] = None
+    temp_path: Path | None = None
     try:
         if not fname.endswith(".pdf"):
             fname = f"{fname.rsplit('.', 1)[0] if '.' in fname else 'fulltext'}.pdf"
@@ -172,7 +172,7 @@ def _resolve_no_user_verify_interactive(*, dry_run: bool, no_user_verify_flag: b
     return ans in ("no", "n")
 
 
-def _resolve_run_mode_interactive() -> tuple[RunMode, Optional[str]]:
+def _resolve_run_mode_interactive() -> tuple[RunMode, str | None]:
     """Ask for mode and optional item UUID (after repository URL is known)."""
     choice = console.input(
         "[bold cyan]Mode[/bold cyan] [dim]([S]ingle first match / [B]ulk / [I]tem UUID):[/dim] "
@@ -190,10 +190,10 @@ def _resolve_run_mode_interactive() -> tuple[RunMode, Optional[str]]:
 
 
 async def run_async(
-    cli_mode: Optional[str],
-    cli_item_uuid: Optional[str],
+    cli_mode: str | None,
+    cli_item_uuid: str | None,
     discovery_query: str,
-    max_items: Optional[int],
+    max_items: int | None,
     dry_run: bool,
     no_user_verify_flag: bool,
     skip_open: bool,
@@ -215,7 +215,7 @@ async def run_async(
     base_url = console.input(
         "[bold cyan]DSpace base URL[/bold cyan] [dim](Enter for https://demo.dspace.org):[/dim] "
     ).strip() or "https://demo.dspace.org"
-    if "demo.dspace.org" in base_url.lower():
+    if urlparse(base_url).hostname == "demo.dspace.org":
         console.print("[dim]Using demo admin account.[/dim]")
         username = "dspacedemo+admin@gmail.com"
         password = "dspace"
@@ -231,7 +231,7 @@ async def run_async(
 
     # 3) Mode and optional UUID (CLI or interactive)
     resolved_mode: RunMode
-    item_uuid_arg: Optional[str]
+    item_uuid_arg: str | None
     if cli_item_uuid:
         resolved_mode = "item"
         item_uuid_arg = cli_item_uuid.strip()
@@ -387,8 +387,8 @@ async def run_async(
 
 @app.command()
 def main(
-    item_uuid: Optional[str] = typer.Argument(None, help="Item UUID (implies item mode when set)"),
-    mode: Optional[str] = typer.Option(
+    item_uuid: str | None = typer.Argument(None, help="Item UUID (implies item mode when set)"),
+    mode: str | None = typer.Option(
         None,
         "--mode",
         "-m",
@@ -400,7 +400,7 @@ def main(
         "-q",
         help="Discovery Lucene query (default: items with a DOI field)",
     ),
-    max_items: Optional[int] = typer.Option(
+    max_items: int | None = typer.Option(
         None,
         "--max-items",
         help="Max eligible items to process in bulk mode",

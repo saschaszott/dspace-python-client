@@ -16,16 +16,16 @@ import json
 import re
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
 import yaml
-
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
+
 from dspace_client import (
     AuthenticationError,
     BatchItemCreator,
@@ -71,7 +71,7 @@ def _sanitize_hostname(base_url: str) -> str:
 
 def _diagnostics_basename(base_url: str) -> str:
     """UTC date + hour.minute for filenames (when diagnostics are written)."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     d = now.strftime("%Y-%m-%d")
     t = now.strftime("%H.%M")
     host = _sanitize_hostname(base_url)
@@ -128,7 +128,7 @@ def _build_diagnostics_payload(
     return {
         "schema_version": DIAGNOSTICS_SCHEMA_VERSION,
         "tool": "megaspace",
-        "saved_at_utc": datetime.now(timezone.utc).isoformat(),
+        "saved_at_utc": datetime.now(UTC).isoformat(),
         "timezone": "UTC",
         "base_url": base_url.rstrip("/"),
         "hostname": hostname,

@@ -5,12 +5,11 @@ has a PDF, we trust that until a forced rerun. One CSV per repository.
 """
 
 import csv
-import os
 import hashlib
+import os
 import re
-from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
 import urllib.parse
+from pathlib import Path
 
 
 def _normalize_base_url(base_url: str) -> str:
@@ -47,7 +46,7 @@ class RestPDFCountCache:
     def __init__(
         self,
         base_url: str,
-        cache_dir: Optional[Path] = None,
+        cache_dir: Path | None = None,
     ):
         self.base_url = _normalize_base_url(base_url)
         self._repo_id = _repository_cache_id(self.base_url)
@@ -55,7 +54,7 @@ class RestPDFCountCache:
             Path(cache_dir) if cache_dir else Path.home() / ".cache" / "dspace-rest-pdf"
         )
         self._cache_path = self._cache_dir / f"{self.CACHE_FILENAME_PREFIX}{self._repo_id}.csv"
-        self._data: Dict[str, bool] = {}  # item_uuid -> has_pdf
+        self._data: dict[str, bool] = {}  # item_uuid -> has_pdf
 
     def _ensure_dir(self) -> None:
         self._cache_dir.mkdir(parents=True, exist_ok=True)
@@ -80,7 +79,7 @@ class RestPDFCountCache:
             except (csv.Error, OSError):
                 pass
 
-    def get(self, item_uuid: str) -> Optional[bool]:
+    def get(self, item_uuid: str) -> bool | None:
         """Return cached has_pdf for item_uuid, or None if not in cache."""
         return self._data.get(item_uuid)
 
@@ -101,7 +100,7 @@ class RestPDFCountCache:
                 )
         os.replace(tmp_path, self._cache_path)
 
-    def totals(self) -> Tuple[int, int]:
+    def totals(self) -> tuple[int, int]:
         """Return (total_count, with_pdf_count) from current in-memory cache."""
         total = len(self._data)
         with_pdf = sum(1 for v in self._data.values() if v)

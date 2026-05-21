@@ -2,11 +2,8 @@
 
 import asyncio
 import os
-import statistics
-import time
 from collections import deque
 from dataclasses import dataclass
-from typing import Deque, Optional
 
 from rich.console import Console
 
@@ -56,8 +53,8 @@ class ThrottleController:
         adaptive_flag = os.environ.get("DSPACE_THROTTLE_ADAPTIVE", "1").lower()
         self.adaptive_enabled: bool = adaptive_flag not in ("0", "false", "no")
 
-        self._durations: Deque[float] = deque(maxlen=self.config.window_size)
-        self._status_codes: Deque[Optional[int]] = deque(maxlen=self.config.window_size)
+        self._durations: deque[float] = deque(maxlen=self.config.window_size)
+        self._status_codes: deque[int | None] = deque(maxlen=self.config.window_size)
         self._ops_since_adjust: int = 0
         self._lock = asyncio.Lock()
 
@@ -70,7 +67,7 @@ class ThrottleController:
         self,
         duration: float,
         success: bool,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
     ) -> None:
         """Record outcome and optionally adjust delay."""
         async with self._lock:

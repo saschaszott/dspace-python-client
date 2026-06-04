@@ -68,34 +68,49 @@ class BatchItemCreator:
         total_items = len(item_data)
         batch_size = 20  # Process in chunks of 20 for concurrency adjustment
 
-        console.print(f"\n[cyan]Starting batch creation of {total_items} items with adaptive concurrency[/cyan]")
-        console.print(f"[dim]Initial concurrency: {self.config.initial}, range: {self.config.min_concurrency}-{self.config.max_concurrency} (balanced ramp-up)[/dim]")
+        # Print through the live progress's console when one is supplied, so adaptive
+        # readouts integrate with the progress bar instead of fighting a second console.
+        out = progress.console if progress is not None else console
+
+        out.print(f"\n[cyan]Starting batch creation of {total_items} items with adaptive concurrency[/cyan]")
+        out.print(
+            f"[dim]Initial concurrency: {self.config.initial}, "
+            f"range: {self.config.min_concurrency}-{self.config.max_concurrency} "
+            f"(ramps up as latency stays healthy)[/dim]"
+        )
+
+        # Narrate concurrency changes as they happen, via the same console as the progress bar.
+        def _narrate_adjust(old_limit: int, new_limit: int, reason: str) -> None:
+            if new_limit > old_limit:
+                out.print(
+                    f"[green]▲ Concurrency {old_limit} → {new_limit}[/green] [dim]({reason})[/dim]"
+                )
+            else:
+                out.print(
+                    f"[yellow]▼ Concurrency {old_limit} → {new_limit}[/yellow] [dim]({reason})[/dim]"
+                )
+
+        self.controller.on_adjust = _narrate_adjust
 
         # Clear previous results
         self.created_items.clear()
         self.created_bundles.clear()
         self.created_bitstreams.clear()
 
-        # Create tasks for all items
-        tasks = []
+        # Build lightweight specs; coroutines are created lazily per chunk (inside the
+        # semaphore) so a cancel/Ctrl-C never leaves un-awaited coroutines behind.
+        specs: list[tuple[dict[str, Any], str]] = []
         for idx, item_info in enumerate(item_data):
-            # Determine collection UUID (cycle through if needed)
             collection_uuid = collection_uuids[idx % len(collection_uuids)]
+            specs.append((item_info, collection_uuid))
 
-            # Create task for this item
-            task = self._create_single_item_with_bitstream(
-                item_info=item_info,
-                collection_uuid=collection_uuid,
-            )
-            tasks.append(task)
-
-        # Process tasks in batches
+        # Process specs in batches
         completed = 0
-        for i in range(0, len(tasks), batch_size):
-            batch_tasks = tasks[i:i + batch_size]
+        for i in range(0, len(specs), batch_size):
+            batch_specs = specs[i:i + batch_size]
 
             # Execute batch with concurrency control
-            batch_results = await self._execute_batch_with_concurrency(batch_tasks)
+            batch_results = await self._execute_batch_with_concurrency(batch_specs)
 
             # Process results
             for result in batch_results:
@@ -105,30 +120,35 @@ class BatchItemCreator:
                     if result.get("bitstream"):
                         self.created_bitstreams.append(result["bitstream"])
                 else:
-                    console.print(f"[red]Failed to create item: {result['error']}[/red]")
+                    out.print(f"[red]Failed to create item: {result['error']}[/red]")
 
-            completed += len(batch_tasks)
+            completed += len(batch_specs)
 
             # Update progress
             if progress and task_id is not None:
-                progress.update(task_id, advance=len(batch_tasks))
+                progress.update(task_id, advance=len(batch_specs))
 
-            # Show current metrics
-            if completed % 50 == 0 or completed == total_items:
-                await self._show_current_metrics(
-                    completed, total_items, on_metrics_sample=on_metrics_sample
-                )
+            # Show current metrics after each chunk (and at the end)
+            await self._show_current_metrics(
+                completed, total_items, out=out, on_metrics_sample=on_metrics_sample
+            )
 
-        console.print(f"[green]✓[/green] Batch creation complete: {len(self.created_items)} items created")
+        out.print(f"[green]✓[/green] Batch creation complete: {len(self.created_items)} items created")
         return self.created_items, self.created_bundles, self.created_bitstreams
 
-    async def _execute_batch_with_concurrency(self, tasks: list) -> list[dict]:
-        """Execute a batch of tasks with concurrency control."""
-        async def execute_with_semaphore(task):
+    async def _execute_batch_with_concurrency(
+        self, specs: list[tuple[dict[str, Any], str]]
+    ) -> list[dict]:
+        """Execute a batch of item specs with concurrency control."""
+        async def execute_with_semaphore(spec: tuple[dict[str, Any], str]):
+            item_info, collection_uuid = spec
             async with self.controller.semaphore:
                 start_time = time.time()
                 try:
-                    result = await task
+                    result = await self._create_single_item_with_bitstream(
+                        item_info=item_info,
+                        collection_uuid=collection_uuid,
+                    )
                     duration = time.time() - start_time
                     await self.controller.record_operation(duration, success=True)
                     return {"success": True, **result}
@@ -138,7 +158,7 @@ class BatchItemCreator:
                     return {"success": False, "error": str(e)}
 
         # Execute all tasks concurrently
-        return await asyncio.gather(*[execute_with_semaphore(task) for task in tasks])
+        return await asyncio.gather(*[execute_with_semaphore(spec) for spec in specs])
 
     async def _create_single_item_with_bitstream(
         self,
@@ -186,9 +206,11 @@ class BatchItemCreator:
         completed: int,
         total: int,
         *,
+        out: Console | None = None,
         on_metrics_sample: Callable[[int, int, PerformanceMetrics], None | Awaitable[None]] | None = None,
     ) -> None:
         """Show current performance metrics and optionally notify ``on_metrics_sample``."""
+        out = out or console
         metrics = await self.controller.get_metrics()
 
         # Format metrics
@@ -199,7 +221,7 @@ class BatchItemCreator:
         # Calculate progress percentage
         progress_pct = (completed / total) * 100 if total > 0 else 0
 
-        console.print(
+        out.print(
             f"\n[dim]Progress: {completed}/{total} ({progress_pct:.1f}%) | "
             f"Concurrency: {concurrency} | "
             f"Throughput: {throughput} items/s | "

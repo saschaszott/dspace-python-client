@@ -18,11 +18,11 @@ docs/
 ├── README.md                    # This file
 ├── API_GOTCHAS.md              # Critical DSpace quirks and gotchas
 └── dspace-rest-api/            # Fetched docs (gitignored)
-    ├── bleeding-edge/          # Latest development branch
-    ├── v7.0/                   # DSpace 7.0 REST contract docs
-    ├── v7.6/                   # DSpace 7.6 REST contract docs
-    ├── v8.0/                   # DSpace 8.0 REST contract docs
-    └── v9.0/                   # DSpace 9.0 REST contract docs
+    ├── bleeding-edge/          # Latest development branch (main)
+    ├── 7.6/                    # DSpace 7.6 REST contract docs (dspace-7_x)
+    ├── 8.0/                    # DSpace 8.0 REST contract docs
+    ├── 9.0/                    # DSpace 9.0 REST contract docs (dspace-9_x)
+    └── 10.0/                   # DSpace 10.0 REST contract docs (dspace-10_x)
 ```
 
 ### Usage
@@ -38,7 +38,7 @@ client = DSpaceClient(
     jwt_token=jwt,
     csrf_token=csrf,
     http_client=client,
-    target_versions="bleeding-edge"  # or ["7.6", "8.0", "9.0"]
+    target_versions="bleeding-edge"  # or ["7.6", "8.0", "9.0", "10.0"]
 )
 ```
 

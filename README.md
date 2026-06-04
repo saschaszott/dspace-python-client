@@ -45,7 +45,7 @@ A comprehensive Python client for the DSpace REST API with version-aware compati
 
 - **Version-first initialization** with automatic documentation fetching
 - **Pre-execution validation** for all API operations
-- **Multi-version compatibility** support (DSpace 7.6, 8.x, 9.x; 7.6 REST contract in `docs/dspace-rest-api/7.6/`)
+- **Multi-version compatibility** support (DSpace 7.6, 8.x, 9.x, 10.x; 7.6 REST contract in `docs/dspace-rest-api/7.6/`)
 - **Git-based documentation** management with auto-updates
 - **Rich console output** for beautiful user experience
 - **Batch operations** with adaptive concurrency control
@@ -140,19 +140,19 @@ Each example's `.py` file starts with a docstring describing its purpose, requir
 ### Reporting and Data Extraction
 
 - **`extract_items_by_year.py`** - Export all items from a given publication year to CSV (DSpace 7, 8, 9)
-- **`recent_items_with_submitters.py`** - Recent items plus submitter email, as CSV. DSpace 9+ only (uses a submitter endpoint introduced in 9.0)
+- **`recent_items_with_submitters.py`** - Recent items plus submitter email, as CSV. DSpace 9.0 and 10.0 (uses a submitter endpoint introduced in 9.0)
 - **`count_items_with_pdf_bitstream.py`** - ⚠️ Anti-pattern; see the [anti-pattern notice](#anti-pattern-counting-items-with-pdf-bitstreams) below
 - **`count_items_with_pdf_bitstream_oai.py`** - ⚠️ Anti-pattern; see the [anti-pattern notice](#anti-pattern-counting-items-with-pdf-bitstreams) below
 
 ### Data Modification
 
-- **`delete_item.py`** - Delete a single item with a retype-to-confirm safeguard (re-type the item's `dc.title`, or `DELETE` if the title is empty). DSpace 7.x
+- **`delete_item.py`** - Delete a single item with a retype-to-confirm safeguard (re-type the item's `dc.title`, or `DELETE` if the title is empty). DSpace 7.6 and 10.0
 - **`link_author_authorities.py`** - Interactive linking of free-text author metadata to records already in this repository's local SOLR authority core. Item / Repository / ORCID / Name modes; exact or fuzzy matching; timestamped log files. Does not query the public ORCID registry.
 
 ### Larger Workflows (folder-based)
 
 - **`examples/full-text-finder/`** - Find open-access PDFs (Unpaywall → OpenAlex → OpenAIRE → CORE) for items with a DOI but no PDF in the ORIGINAL bundle, optionally upload. See **`examples/full-text-finder/README.md`** for setup, modes, and prompts.
-- **`examples/seed/`** - dspace-seed-style scenarios (**MiniSpace**, **MegaSpace**) for filling a repository with communities, collections, items, bitstreams, EPeople, groups, and stats. See **`examples/seed/README.md`**. MiniSpace declares **DSpace 9.0** and runs `verify_server_version` by default. MegaSpace requires `--collections 2` or more and supports the **`on_metrics_sample`** callback on `create_items_batch` for time-series metrics. The large file **`examples/seed/seedpacks/default.yml`** is copied from dspace-seed; sync it manually if the upstream pack changes.
+- **`examples/seed/`** - dspace-seed-style scenarios (**MiniSpace**, **MegaSpace**) for filling a repository with communities, collections, items, bitstreams, EPeople, groups, and stats. See **`examples/seed/README.md`**. MiniSpace declares **DSpace 9.0 and 10.0** and runs `verify_server_version` by default. MegaSpace requires `--collections 2` or more and supports the **`on_metrics_sample`** callback on `create_items_batch` for time-series metrics. The large file **`examples/seed/seedpacks/default.yml`** is copied from dspace-seed; sync it manually if the upstream pack changes.
 
 ### Anti-pattern: counting items with PDF bitstreams
 
@@ -182,7 +182,7 @@ The client requires you to specify target DSpace version(s) at initialization:
 client = DSpaceClient(..., target_versions="8.0")
 
 # Multiple versions (strictest validation)
-client = DSpaceClient(..., target_versions=["7.6", "8.0", "9.0"])
+client = DSpaceClient(..., target_versions=["7.6", "8.0", "9.0", "10.0"])
 
 # Latest development (default)
 client = DSpaceClient(..., target_versions="bleeding-edge")

@@ -13,9 +13,9 @@ from dspace_client import (
     show_script_attribution,
 )
 
-# DEVELOPER DECLARES: This script is compatible with DSpace 7.6, 8.0, and 9.0
+# DEVELOPER DECLARES: This script is compatible with DSpace 7.6, 8.0, 9.0, and 10.0
 # Users can only run this script against DSpace servers running these versions
-TARGET_VERSIONS = ["7.6", "8.0", "9.0"]
+TARGET_VERSIONS = ["7.6", "8.0", "9.0", "10.0"]
 SCRIPT_AUTHORS = "Bram Luyten (Atmire)"
 
 console = Console()
@@ -86,7 +86,7 @@ async def main():
             print(f"Created collection: {collection['uuid']}")
 
             config = ConcurrencyConfig(
-                initial=8,
+                initial=2,
                 max_concurrency=32,
                 min_concurrency=2,
             )

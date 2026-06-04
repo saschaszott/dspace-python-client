@@ -32,8 +32,8 @@ from dspace_client import (
     show_script_attribution,
 )
 
-# DEVELOPER DECLARES: compatible with DSpace 7.6, 8.0, 9.0 (REST discovery + item bundles)
-TARGET_VERSIONS = ["7.6", "8.0", "9.0"]
+# DEVELOPER DECLARES: compatible with DSpace 7.6, 8.0, 9.0, 10.0 (REST discovery + item bundles)
+TARGET_VERSIONS = ["7.6", "8.0", "9.0", "10.0"]
 SCRIPT_AUTHORS = "Bram Luyten (Atmire)"
 
 console = Console()

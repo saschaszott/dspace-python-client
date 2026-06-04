@@ -13,8 +13,8 @@ from dspace_client import (
 )
 from dspace_client.exceptions import DSpaceAPIError
 
-# DEVELOPER DECLARES: DSpace 7.x (use "7.0" so all 7.y minors match; see dspace_client.version.VersionCompatibility.SUPPORTED_VERSIONS)
-TARGET_VERSIONS = ["7.6"]
+# DEVELOPER DECLARES: DSpace 7.6 and 10.0 (delete endpoint is unchanged across versions; verified against demo.dspace.org on DSpace 10)
+TARGET_VERSIONS = ["7.6", "10.0"]
 SCRIPT_AUTHORS = "Bram Luyten (Atmire)"
 
 console = Console()

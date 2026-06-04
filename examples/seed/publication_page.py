@@ -55,7 +55,7 @@ from rich.table import Table
 from dspace_client import AuthenticationError, ServerVersionMismatchError, show_script_attribution
 from dspace_client.exceptions import DSpaceAPIError
 
-TARGET_VERSIONS = ["9.0"]
+TARGET_VERSIONS = ["9.0", "10.0"]
 SCRIPT_AUTHORS = "Abhinav Sidharthan (Atmire)"
 
 _SEED_DIR = Path(__file__).resolve().parent

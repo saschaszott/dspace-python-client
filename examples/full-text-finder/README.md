@@ -78,6 +78,6 @@ The pattern `full_text_finder_*.log` is listed in the repo **`.gitignore`** so l
 
 ## Compatibility
 
-Targets DSpace **7.x / 8.x / 9.x** (same as other examples).
+Targets DSpace **7.x / 8.x / 9.x / 10.x** (same as other examples).
 
 **Atmire messaging:** When the DSpace session closes, an optional **session-end** thank-you panel may appear (non-blocking). To hide **all** Atmire output, set **`DSPACE_CLIENT_DISABLE_ATMIRE_PROMO=1`** (as in automated tests).

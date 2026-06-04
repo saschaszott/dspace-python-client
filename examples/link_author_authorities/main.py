@@ -60,8 +60,8 @@ from state import (
     _should_process_uuid,
 )
 
-# Compatible with DSpace 7.x, 8.x, 9.x (items PATCH and submission vocabularies)
-TARGET_VERSIONS = ["7.0", "8.0", "9.0"]
+# Compatible with DSpace 7.x, 8.x, 9.x, 10.x (items PATCH and submission vocabularies)
+TARGET_VERSIONS = ["7.0", "8.0", "9.0", "10.0"]
 SCRIPT_AUTHORS = "Bram Luyten (Atmire), Wesley Van Dessel (Sciensano)"
 
 _INTRO_TITLE = "Link plain metadata text values to ORCID authorities in your SOLR core"

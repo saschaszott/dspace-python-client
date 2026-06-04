@@ -16,7 +16,7 @@ If you have not installed the project yet, follow the root **[README → Running
 
 ### MegaSpace (`megaspace.py`)
 
-**Goal:** Stress a **DSpace 9.0** instance with **many collections, batch-created items, EPeople, groups, READ policies, view/statistics-style traffic**, and sequential **bulk bitstream uploads**. It uses **`BatchItemCreator`** and **`ConcurrencyConfig`** from the library and is meant for **performance testing**, **concurrency behaviour**, and **realistic “busy repository”** data—not for a minimal tutorial.
+**Goal:** Stress a **DSpace 9.0 / 10.0** instance with **many collections, batch-created items, EPeople, groups, READ policies, view/statistics-style traffic**, and sequential **bulk bitstream uploads**. It uses **`BatchItemCreator`** and **`ConcurrencyConfig`** from the library and is meant for **performance testing**, **concurrency behaviour**, and **realistic “busy repository”** data—not for a minimal tutorial.
 
 **Notable behaviour:** Configurable scale via CLI flags; optional **diagnostic export** (JSON + Markdown) and a **slow-request** summary; optional cleanup. See [Pacing and MegaSpace diagnostics](#pacing-and-megaspace-diagnostics).
 
@@ -34,7 +34,7 @@ The YAML pack is still loaded only so a **generated sample PDF** can be produced
 | Large-scale batch load, groups/EPeople, diagnostics, optional cleanup | **MegaSpace** |
 | Fixed metadata from JSON + anonymous read on item/file | **Publication Page** |
 
-All three target **DSpace 9.0**, call **`verify_server_version`** after login **by default**, and accept **`--skip-version-check`** for a faster run without the compatibility probe.
+All three target **DSpace 9.0 and 10.0**, call **`verify_server_version`** after login **by default**, and accept **`--skip-version-check`** for a faster run without the compatibility probe.
 
 ## Layout
 

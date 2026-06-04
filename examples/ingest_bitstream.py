@@ -25,7 +25,7 @@ from dspace_client import (
 )
 from dspace_client.exceptions import DSpaceAPIError
 
-TARGET_VERSIONS = ["7.6", "8.0", "9.0"]
+TARGET_VERSIONS = ["7.6", "8.0", "9.0", "10.0"]
 SCRIPT_AUTHORS = "Bram Luyten (Atmire)"
 
 console = Console()

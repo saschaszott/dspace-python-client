@@ -11,9 +11,9 @@ from rich.console import Console
 
 from dspace_client import ServerVersionMismatchError, managed_client, show_script_attribution
 
-# DEVELOPER DECLARES: This script is compatible with DSpace 8.0 and 9.0
+# DEVELOPER DECLARES: This script is compatible with DSpace 8.0, 9.0 and 10.0
 # Users can only run this script against DSpace servers running these versions
-TARGET_VERSIONS = ["8.0", "9.0"]
+TARGET_VERSIONS = ["8.0", "9.0", "10.0"]
 SCRIPT_AUTHORS = "Bram Luyten (Atmire)"
 
 console = Console()

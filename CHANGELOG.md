@@ -9,7 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **DSpace 10 support**: Added `10.0` to the supported-version registry (`dspace_client/versions.py`), mapped to the `dspace-10_x` RestContract branch, and declared `10.0` in the `TARGET_VERSIONS` of all applicable example scripts. Verified end-to-end against `demo.dspace.org` (now DSpace 10.1): authentication, full CRUD (community/collection/item/bundle/bitstream), statistics view events, discovery search, item/bundle/bitstream/format reads, the submitter endpoint, and group/EPerson management all work unchanged. The DSpace 9 -> 10 REST contract diff is additive only (new `auditevents`, `edititems`, `edititemmodes`, `securitysettings` endpoints and new `findEditAuthorized`/`findAddAuthorized`/`findByCustomURL` search methods); no endpoint our examples use changed.
 - **Licensing**: Atmire copyright notice in `LICENSE`; new `NOTICE` and `THIRD_PARTY_LICENSES.md` for attribution and dependency license tracking.
+
+### Changed
+
+- **RestContract branch mapping**: Re-pointed `9.0` from `main` to the stable `dspace-9_x` branch, since `main` now tracks DSpace 10 after its release. `bleeding-edge` continues to track `main`.
+
+### Fixed
+
+- **`dspace-docs fetch 8.0`**: Re-pointed `8.0` from the non-existent `dspace-8.0` ref to the `dspace-8_x` branch (the RestContract repo renamed its 8.x branch), so fetching DSpace 8 docs works again.
 
 ### Fixed
 

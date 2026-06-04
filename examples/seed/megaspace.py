@@ -37,7 +37,7 @@ from dspace_client.concurrency import PerformanceMetrics
 from dspace_client.exceptions import DSpaceAPIError
 
 # DEVELOPER DECLARES: admin-heavy APIs; align with bulk_import
-TARGET_VERSIONS = ["9.0"]
+TARGET_VERSIONS = ["9.0", "10.0"]
 SCRIPT_AUTHORS = "Bram Luyten (Atmire)"
 SLOW_REQUEST_THRESHOLD_SECONDS = 2.0
 DIAGNOSTICS_SCHEMA_VERSION = "1.0"
@@ -601,7 +601,7 @@ async def run_megaspace(
                 num_items_per_collection,
             )
             config = ConcurrencyConfig(
-                initial=8,
+                initial=2,
                 max_concurrency=32,
                 min_concurrency=2,
             )

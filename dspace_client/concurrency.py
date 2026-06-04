@@ -4,6 +4,7 @@ import asyncio
 import statistics
 import time
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass
 
 
@@ -232,6 +233,10 @@ class ConcurrencyController:
         self.monitor = PerformanceMonitor(self.config)
         self.operations_since_adjustment = 0
         self._lock = asyncio.Lock()
+        # Optional hook invoked as ``on_adjust(old_limit, new_limit, reason)`` whenever the
+        # concurrency limit actually changes. Lets callers narrate ramp-up/ramp-down without
+        # the library importing any console/IO machinery.
+        self.on_adjust: Callable[[int, int, str], None] | None = None
 
     async def acquire(self):
         """Acquire concurrency slot."""
@@ -270,6 +275,7 @@ class ConcurrencyController:
                 current_limit - self.config.ramp_down_amount
             )
             await self.semaphore.adjust_limit(new_limit)
+            self._notify_adjust(current_limit, new_limit, "latency/throughput degraded")
             return
 
         # Check if we should ramp up
@@ -280,6 +286,12 @@ class ConcurrencyController:
                 current_limit + self.config.ramp_up_amount
             )
             await self.semaphore.adjust_limit(new_limit)
+            self._notify_adjust(current_limit, new_limit, "latency healthy")
+
+    def _notify_adjust(self, old_limit: int, new_limit: int, reason: str) -> None:
+        """Invoke the optional ``on_adjust`` hook when the limit actually changed."""
+        if new_limit != old_limit and self.on_adjust is not None:
+            self.on_adjust(old_limit, new_limit, reason)
 
     async def get_metrics(self) -> PerformanceMetrics:
         """Get current performance metrics."""

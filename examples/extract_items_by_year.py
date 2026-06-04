@@ -11,7 +11,7 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 
 from dspace_client import DSpaceAuthClient, DSpaceClient, show_script_attribution
 
-TARGET_VERSIONS = ["7.0", "8.0", "9.0"]
+TARGET_VERSIONS = ["7.0", "8.0", "9.0", "10.0"]
 SCRIPT_AUTHORS = "Bram Luyten (Atmire)"
 
 console = Console()

@@ -42,7 +42,7 @@ from upload import upload_pdf_bitstream
 from dspace_client import show_script_attribution
 from dspace_client.exceptions import DSpaceAPIError
 
-TARGET_VERSIONS = ["7.0", "8.0", "9.0"]
+TARGET_VERSIONS = ["7.0", "8.0", "9.0", "10.0"]
 SCRIPT_AUTHORS = "Bram Luyten (Atmire)"
 
 DEFAULT_DISCOVERY_QUERY = "dc.identifier.doi:*"

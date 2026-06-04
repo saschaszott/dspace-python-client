@@ -41,7 +41,7 @@ from dspace_client import (
     show_script_attribution,
 )
 
-TARGET_VERSIONS = ["7.6", "8.0", "9.0"]
+TARGET_VERSIONS = ["7.6", "8.0", "9.0", "10.0"]
 SCRIPT_AUTHORS = "Bram Luyten (Atmire)"
 DEFAULT_TYPE = "Journal article"
 PAGE_SIZE = 100

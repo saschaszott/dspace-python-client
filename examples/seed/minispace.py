@@ -23,8 +23,8 @@ from rich.table import Table
 from dspace_client import AuthenticationError, ServerVersionMismatchError, show_script_attribution
 from dspace_client.exceptions import DSpaceAPIError
 
-# DEVELOPER DECLARES: compatible with DSpace 9.0
-TARGET_VERSIONS = ["9.0"]
+# DEVELOPER DECLARES: compatible with DSpace 9.0 and 10.0
+TARGET_VERSIONS = ["9.0", "10.0"]
 SCRIPT_AUTHORS = "Bram Luyten (Atmire)"
 
 _SEED_DIR = Path(__file__).resolve().parent

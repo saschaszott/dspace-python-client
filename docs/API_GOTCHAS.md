@@ -2,6 +2,21 @@
 
 This document tracks important differences and compatibility issues between DSpace versions.
 
+## DSpace 10
+
+`demo.dspace.org` runs DSpace 10 (10.1 at time of writing), so it is the default reference server for examples once they declare `10.0` in their `TARGET_VERSIONS`.
+
+The DSpace 9 -> 10 REST contract change is **additive only** for everything these examples use. Comparing `docs/dspace-rest-api/9.0/` (the 9.0 snapshot) against `docs/dspace-rest-api/10.0/` (`dspace-10_x`):
+
+- **New endpoints** (not used by the bundled examples): `auditevents`, `edititems`, `edititemmodes`, `securitysettings`.
+- **New search methods** (additive): `findEditAuthorized` / `findAddAuthorized` on communities/collections/items, and `findByCustomURL` on items.
+- **Cosmetic only**: formatting/typo fixes in `bitstreams.md`, `identifiers.md`, `collections.md`.
+- **Unchanged**: authentication/CSRF, communities/collections/items CRUD, bundles, bitstreams, EPersons, groups, vocabularies, discovery search, the submitter endpoint, and statistics view events.
+
+Because there were no breaking changes, declaring `10.0` is purely additive: a script keeps its existing `TARGET_VERSIONS` and simply gains `"10.0"`. Note that the connection gate rejects **major** version mismatches, so a script that only declares `["9.0"]` will be refused by a DSpace 10 server with `ServerVersionMismatchError` until `"10.0"` is added.
+
+To refresh the contract docs: `dspace-docs fetch 10.0` (writes to `docs/dspace-rest-api/10.0/`).
+
 ## Submitter Information
 
 ### DSpace 9+

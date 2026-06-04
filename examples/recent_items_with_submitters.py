@@ -14,7 +14,7 @@ from dspace_client import DSpaceAuthClient, DSpaceClient, show_script_attributio
 # DEVELOPER DECLARES: This script is compatible with DSpace 9.0 only
 # (Submitter information endpoint only exists in DSpace 9+)
 # Users can only run this script against DSpace servers running version 9.0 or later
-TARGET_VERSIONS = ["9.0"]
+TARGET_VERSIONS = ["9.0", "10.0"]
 SCRIPT_AUTHORS = "Bram Luyten (Atmire)"
 
 console = Console()

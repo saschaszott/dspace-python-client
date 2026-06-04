@@ -2,6 +2,22 @@ import pytest
 
 from dspace_client.exceptions import VersionIncompatibilityError
 from dspace_client.version import VersionCompatibility
+from dspace_client.versions import REST_CONTRACT_BRANCHES, SUPPORTED_VERSIONS
+
+
+def test_dspace_10_is_supported_and_mapped():
+    """DSpace 10 must be a declarable target with a RestContract branch."""
+    assert "10.0" in SUPPORTED_VERSIONS
+    assert REST_CONTRACT_BRANCHES.get("10.0") == "dspace-10_x"
+
+
+def test_dspace_10_server_gating():
+    """A DSpace 10.x server is accepted for ['10.0'] but rejected for ['9.0']."""
+    ok_10, _ = VersionCompatibility.check_server_version_compatibility("10.1", ["10.0"])
+    assert ok_10 is True
+
+    ok_9, _ = VersionCompatibility.check_server_version_compatibility("10.1", ["9.0"])
+    assert ok_9 is False
 
 
 def test_check_server_version_compatibility_accepts_prefixed_version():
